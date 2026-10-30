@@ -22,7 +22,9 @@ import type { Settings } from '../shared/settings'
 import {
   findDeepLinkInArgv,
   resolveJitsiMeetingInput,
-  safeUrlForLog
+  resolveTeamworkDeepLink,
+  safeUrlForLog,
+  type ResolvedDeepLink
 } from '../shared/deep-links'
 import type {
   ImportExportResult,
@@ -302,6 +304,26 @@ export class AppController {
     return { ok: true, url: result.url }
   }
 
+  private openDeepLink(raw: string): ResolvedDeepLink {
+    const result = resolveTeamworkDeepLink(
+      raw,
+      this.settings.servers.jitsiUrl,
+      this.settings.servers.elementUrl
+    )
+    if (!result.ok) {
+      this.logger.warn(`Rejected TeamWork deep link: ${result.error}`)
+      return result
+    }
+    if (!this.views) {
+      return { ok: false, error: 'The embedded view is not available.' }
+    }
+
+    this.logger.info(`Opening ${result.view} deep link ${safeUrlForLog(result.url)}`)
+    if (result.view === 'jitsi') this.views.openJitsiMeeting(result.url)
+    else this.views.openElementRoom(result.url)
+    return result
+  }
+
   activateView(view: ShellView): void {
     if (view === 'element' || view === 'jitsi') {
       this.views?.activate(view)
@@ -424,13 +446,13 @@ export class AppController {
     this.pendingDeepLink = null
     this.showWindow()
 
-    const result = this.joinJitsiMeeting(raw)
+    const result = this.openDeepLink(raw)
     if (!result.ok) {
       const options: Electron.MessageBoxOptions = {
         type: 'warning',
-        title: 'Could not open Jitsi meeting',
-        message: 'TeamWork could not open the meeting link.',
-        detail: result.error ?? 'The meeting URL is invalid.',
+        title: 'Could not open TeamWork link',
+        message: 'TeamWork could not open the link.',
+        detail: result.error ?? 'The link target is invalid.',
         buttons: ['OK'],
         noLink: true
       }
@@ -439,7 +461,7 @@ export class AppController {
       return
     }
 
-    this.showView('jitsi')
+    this.showView(result.view)
   }
 
   private applySettingsSafely(previous: Settings): void {

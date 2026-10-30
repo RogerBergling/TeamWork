@@ -7,6 +7,7 @@ TeamWork produces three Linux artifacts from one codebase:
 | AppImage | `TeamWork-<version>-x86_64.AppImage` | Single executable file; no installation |
 | Debian package | `TeamWork-<version>-amd64.deb` | Ubuntu/Debian managed deployment |
 | RPM package | `TeamWork-<version>-x86_64.rpm` | Fedora/RHEL/SUSE managed deployment |
+| Browser extension | `TeamWork-Browser-Extension-<version>.zip` | Chrome/Edge Link Opener store or policy deployment |
 
 ## One executable or an installer?
 
@@ -46,7 +47,11 @@ npm run dist
 npm run dist:appimage
 npm run dist:deb
 npm run dist:rpm
+npm run extension:build
+npm run extension:zip
 ```
+
+The extension zip is store-ready (manifest at the archive root). See [Browser extension](browser-extension.md).
 
 The icon is generated from `src/renderer/assets/logo.svg`:
 
@@ -63,6 +68,7 @@ release/
 ├── TeamWork-0.1.0-x86_64.AppImage
 ├── TeamWork-0.1.0-amd64.deb
 ├── TeamWork-0.1.0-x86_64.rpm
+├── TeamWork-Browser-Extension-0.1.0.zip
 ├── linux-unpacked/          # unpacked application used by the targets
 └── *.blockmap               # update metadata
 ```
@@ -139,10 +145,11 @@ The current build is unsigned. For production distribution:
 The following was validated locally:
 
 - `npm run typecheck`
-- `npm test` — 40 tests
+- `npm test` — 59 tests
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server
 - Deep-link launch test: `teamwork://join?url=...` switched to the Jitsi view and preserved the full meeting URL including the JWT query
 - Join-dialog test: submitting a Jitsi URL through the renderer opened it in the Jitsi view
 - AppImage self-registration: `~/.local/share/applications/teamwork.desktop` was created and `xdg-mime` reported `teamwork.desktop` for `x-scheme-handler/teamwork`
+- Chrome/Edge extension built and packaged as `release/TeamWork-Browser-Extension-0.1.0.zip`
 - The built **AppImage**, extracted **.deb**, and extracted **.rpm** each launched successfully with the smoke test and reported both views as `ready`

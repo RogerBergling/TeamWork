@@ -20,22 +20,25 @@
     "postinstall": "node node_modules/electron/install.js",
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.extension.json",
     "test": "vitest run",
     "build": "npm run typecheck && electron-vite build",
     "smoke": "npm run build && TEAMWORK_SMOKE_TEST=1 TEAMWORK_SMOKE_SCREENSHOT=teamwork-smoke.png electron . --no-sandbox --disable-gpu",
+    "extension:build": "node browser-extension/build.mjs",
+    "extension:zip": "node scripts/zip-extension.mjs",
     "icon": "node scripts/generate-icon.mjs",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder --linux AppImage deb rpm",
-    "dist:appimage": "npm run build && electron-builder --linux AppImage",
-    "dist:deb": "npm run build && electron-builder --linux deb",
-    "dist:rpm": "npm run build && electron-builder --linux rpm"
+    "dist": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux AppImage deb rpm",
+    "dist:appimage": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux AppImage",
+    "dist:deb": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux deb",
+    "dist:rpm": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux rpm"
   },
   "dependencies": {
     "electron-log": "5.4.4",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@types/chrome": "^0.3.7",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -43,6 +46,7 @@
     "electron": "45.1.0",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
+    "esbuild": "^0.28.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "sharp": "0.35.5",

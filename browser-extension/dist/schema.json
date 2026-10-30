@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "jitsiDomains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Trusted Jitsi hostnames. Wildcards such as *.example.com are supported."
+    },
+    "elementDomains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Trusted Element Web hostnames."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["auto", "ask", "click"],
+      "description": "How matching navigations are handled."
+    },
+    "detectPublicJitsi": {
+      "type": "boolean",
+      "description": "Recognize meet.jit.si, 8x8.vc and their subdomains."
+    },
+    "detectMatrixTo": {
+      "type": "boolean",
+      "description": "Recognize matrix.to permalinks."
+    },
+    "interceptAllSites": {
+      "type": "boolean",
+      "description": "Register the content script on all websites. Requires host permissions."
+    }
+  },
+  "additionalProperties": false
+}

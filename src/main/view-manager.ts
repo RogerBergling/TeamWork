@@ -44,6 +44,20 @@ const VIEW_LABEL: Record<ManagedView, string> = {
   jitsi: 'Jitsi'
 }
 
+function isSameDocumentUrl(current: string, target: URL): boolean {
+  if (!current) return false
+  try {
+    const existing = new URL(current)
+    return (
+      existing.origin === target.origin &&
+      existing.pathname === target.pathname &&
+      existing.search === target.search
+    )
+  } catch {
+    return false
+  }
+}
+
 export class ViewManager {
   private readonly entries = new Map<ManagedView, ManagedEntry>()
   private active: ManagedView | null = null
@@ -178,6 +192,11 @@ export class ViewManager {
   openJitsiMeeting(url: string): void {
     this.load('jitsi', url)
     this.activate('jitsi')
+  }
+
+  openElementRoom(url: string): void {
+    this.load('element', url)
+    this.activate('element')
   }
 
   toggleDevTools(view: ManagedView): void {
@@ -503,10 +522,22 @@ export class ViewManager {
       return
     }
 
-    entry.hideUntilReady = true
+    const sameDocument =
+      !entry.view.webContents.isLoadingMainFrame() &&
+      isSameDocumentUrl(entry.view.webContents.getURL(), validated)
+
+    entry.hideUntilReady = !sameDocument
     entry.lastLoadFailed = false
-    this.setStatus(entry, { view: kind, state: 'loading', url: requested })
+    this.setStatus(entry, {
+      view: kind,
+      state: sameDocument ? 'ready' : 'loading',
+      url: requested
+    })
     this.logger.info(`Loading ${VIEW_LABEL[kind]} from ${safeUrlForLog(requested)}`)
+
+    if (sameDocument) {
+      this.updateVisibility()
+    }
 
     entry.view.webContents.loadURL(validated.toString()).catch((error: unknown) => {
       // did-fail-load reports the user-facing error. Keep this at debug level to

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeamWork Link Opener</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popup-body">
+    <main class="popup">
+      <header class="popup-header">
+        <img src="icons/icon48.png" alt="" class="popup-icon" />
+        <div>
+          <h1>TeamWork</h1>
+          <p>Link Opener</p>
+        </div>
+      </header>
+
+      <div id="page-info" class="popup-page">
+        <span class="eyebrow">Current page</span>
+        <strong id="page-title">Loading…</strong>
+        <span id="page-url" class="muted"></span>
+      </div>
+
+      <section id="matched" class="popup-result hidden">
+        <span id="match-kind" class="badge"></span>
+        <p id="match-description" class="muted"></p>
+        <button id="open-button" type="button" class="button primary wide">Open in TeamWork</button>
+      </section>
+
+      <section id="unmatched" class="popup-result hidden">
+        <p class="muted">
+          This page is not a configured Jitsi or Element link. Add your meeting domains in the
+          extension settings.
+        </p>
+      </section>
+
+      <footer class="popup-footer">
+        <button id="settings-button" type="button" class="button ghost">Settings</button>
+        <span id="mode-label" class="muted"></span>
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

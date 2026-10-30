@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open in TeamWork</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page interstitial-page">
+    <main class="interstitial">
+      <img src="icons/icon128.png" alt="" class="interstitial-logo" />
+      <h1>Open this in TeamWork?</h1>
+      <p class="muted">
+        This link belongs to a recognized meeting service. TeamWork can open it in the desktop
+        application instead of the browser.
+      </p>
+      <div class="target-box">
+        <span class="eyebrow">Meeting</span>
+        <strong id="host">Unknown host</strong>
+        <span id="target" class="muted"></span>
+      </div>
+      <div id="error" class="inline-error hidden" role="alert"></div>
+      <div class="interstitial-actions">
+        <button id="open-button" type="button" class="button primary">Open in TeamWork</button>
+        <button id="continue-button" type="button" class="button secondary">Continue in browser</button>
+      </div>
+      <p class="small muted">
+        The browser may ask once for permission to launch TeamWork. TeamWork must be installed on
+        this computer.
+      </p>
+    </main>
+    <script src="interstitial.js"></script>
+  </body>
+</html>

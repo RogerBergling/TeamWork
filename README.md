@@ -28,6 +28,7 @@ This is also why the application can support the complete Jitsi and Element feat
 - **One Teams-like application** with a dark navigation rail, contextual header, status bar, and light/dark themes.
 - **Element and Jitsi side by side**, each with a persistent, isolated browser session.
 - **Join Jitsi meetings from a URL** using the Join meeting dialog (`Ctrl+J`) or a `teamwork://join?...` deep link from Outlook, email, or chat.
+- **Chrome/Edge Link Opener extension** that converts ordinary Jitsi and Matrix/Element HTTPS links into TeamWork deep links, with trusted-domain and public-service detection.
 - **Web-based authentication preserved**, including SAML and OpenID redirect flows and login popups.
 - **Every TeamWork setting editable in the GUI**, saved to a single JSON file.
 - **Configurable branding**: application name, organisation, accent colour, theme, density, and custom logo.
@@ -64,14 +65,18 @@ The clients load from those URLs. TeamWork does not bundle Element or Jitsi serv
 
 To join a meeting from an invite, open the **Meet** view and click **Join meeting** (`Ctrl+J`), then paste the Jitsi link. See [Deep links](docs/deep-links.md) for clickable `teamwork://` invitation links.
 
+For automatic conversion of normal HTTPS links, install the [Chrome/Edge extension](docs/browser-extension.md). The unpacked extension is in `browser-extension/dist`; a packaged zip is produced in `release/`.
+
 ## Build and package
 
 ```bash
 npm run typecheck     # TypeScript checks for main, preload, and renderer
-npm test              # 40 unit tests
+npm test              # 59 unit tests
 npm run build         # production bundles in out/
 npm run smoke         # real Electron smoke test (needs a display or Xvfb)
-npm run dist          # AppImage + deb + rpm in release/
+npm run extension:build
+npm run extension:zip # Chrome/Edge zip in release/
+npm run dist          # AppImage + deb + rpm (+ extension zip) in release/
 ```
 
 Individual targets:
@@ -147,11 +152,12 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 src/main/          Electron main process, configuration, sessions, windows
 src/preload/       Narrow contextBridge API
 src/renderer/      React shell, settings, logs, screen-share picker
-src/shared/        Settings schema, URL policy, shared types
-tests/             Unit tests for schema, URL policy, stores
-docs/              Architecture, configuration, authentication, packaging
+src/shared/        Settings schema, URL policy, deep links, shared types
+browser-extension/ Chrome/Edge Manifest V3 Link Opener (source + built dist)
+tests/             Unit tests for schema, URL policy, deep links, stores
+docs/              Architecture, configuration, authentication, deep links, packaging
 build/             Icons and packaging resources
-scripts/           Icon generation
+scripts/           Icon and extension packaging scripts
 ```
 
 ## Validation performed
@@ -159,19 +165,21 @@ scripts/           Icon generation
 The repository is validated with:
 
 - `npm run typecheck`
-- `npm test` — 40 tests across settings, URL policy, deep links, config store, window state, and paths
+- `npm test` — 59 tests across settings, URL policy, deep links, extension link matching, config store, window state, and paths
 - `npm run build`
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test
 - AppImage self-registration verified with `xdg-mime query default x-scheme-handler/teamwork`
+- Browser extension built and packaged; link matching, SafeLinks unwrapping, Jitsi/Matrix conversion covered by unit tests
 
 ## Known limitations
 
 - Element and Jitsi run as embedded web applications, so their internal navigation and settings stay inside their own interfaces. TeamWork cannot mirror every upstream option into the native settings file.
 - There is no unified cross-application search, notification list, or presence model; those remain features of Element/Jitsi.
 - Jitsi calls launched from Element rely on your deployment's Jitsi widget configuration. The dedicated Jitsi tab always provides the full standalone client.
-- Normal Jitsi HTTPS links in Outlook open the browser. Use **Meet → Join meeting**, the `Ctrl+J` shortcut, or a `teamwork://join?...` link to open a meeting in TeamWork. Automatic calendar discovery would require ICS or Microsoft Graph integration.
+- Normal Jitsi HTTPS links open the browser unless the Chrome/Edge extension is installed, or a `teamwork://join?...` link is used. Automatic calendar discovery would still require ICS or Microsoft Graph integration.
+- The browser extension is Chromium-only (Chrome/Edge). Mobile browsers and non-Chromium browsers are not covered.
 - No auto-update mechanism yet; updates are delivered by replacing the AppImage or installing a newer package.
 - Element Web is AGPL-3.0. TeamWork loads it from your server by default and does not redistribute Element. If you bundle a modified Element build, AGPL obligations apply. See [Third-party notices](THIRD_PARTY_NOTICES.md).
 
@@ -181,4 +189,4 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 
 ---
 
-Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Packaging](docs/packaging.md)
+Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md)

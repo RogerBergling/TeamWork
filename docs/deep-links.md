@@ -24,6 +24,24 @@ The dialog accepts either:
 
 The complete URL is preserved, including query parameters, JWT tokens, and fragments. TeamWork validates that the meeting URL has the same origin as the Jitsi URL configured in Settings. Links from other origins are rejected.
 
+## Matrix and Element links
+
+Matrix rooms and direct messages use a separate deep-link action:
+
+```text
+teamwork://matrix?url=https%3A%2F%2Fmatrix.to%2F%23%2F%21room%3Aexample.com
+```
+
+TeamWork accepts:
+
+- `matrix.to` room links such as `https://matrix.to/#/!room:example.com`
+- `matrix.to` user links such as `https://matrix.to/#/@alice:example.com`
+- Direct Element permalinks on the configured Element origin, for example `https://element.example.com/#/room/!room:example.com`
+
+`matrix.to` links are converted to the configured Element base URL. The Element URL must be configured in **Settings → Connection**; otherwise the link is rejected.
+
+The [Chrome/Edge extension](browser-extension.md) can generate these Matrix deep links from ordinary HTTPS links.
+
 ## Creating a clickable invitation link
 
 Encode the complete Jitsi URL and put it in the `url` parameter:

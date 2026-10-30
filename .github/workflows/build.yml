@@ -52,7 +52,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd release
-          sha256sum TeamWork-*.AppImage TeamWork-*.deb TeamWork-*.rpm > SHA256SUMS
+          sha256sum TeamWork-*.AppImage TeamWork-*.deb TeamWork-*.rpm TeamWork-Browser-Extension-*.zip > SHA256SUMS
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -64,4 +64,5 @@ jobs:
             release/TeamWork-*.AppImage
             release/TeamWork-*.deb
             release/TeamWork-*.rpm
+            release/TeamWork-Browser-Extension-*.zip
             release/SHA256SUMS

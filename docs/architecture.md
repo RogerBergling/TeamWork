@@ -72,6 +72,19 @@ Linux registration differs by package format:
 
 Initial process arguments and `second-instance` arguments are both scanned for `teamwork://` links. A renderer-ready handshake prevents the initial view selection from overwriting a deep-link navigation.
 
+Matrix links use `teamwork://matrix?url=...`. `matrix.to` room/user links are converted to permalinks on the configured Element origin; direct Element permalinks are accepted only on that same origin.
+
+## Browser extension
+
+`browser-extension/` contains a Manifest V3 Chrome/Edge extension that converts ordinary HTTPS links into TeamWork deep links.
+
+- Content scripts intercept link clicks on common mail/chat hosts and unwrap Outlook SafeLinks URLs.
+- Optional all-site interception is gated behind an optional host permission.
+- `webNavigation` handles links opened by external applications with automatic, ask-first, or click-only modes.
+- Trusted Jitsi and Element FQDNs are configured by the user or supplied through managed storage. Public Jitsi detection is opt-in.
+- The extension never bypasses the desktop app’s origin validation; it only constructs the deep link.
+- The extension is built with esbuild into `browser-extension/dist` and packaged as a store-ready zip.
+
 ## Permissions
 
 `SessionManager` installs permission handlers per partition:
@@ -131,7 +144,7 @@ One build produces:
 ## Future work
 
 - Auto-update channel with signed AppImage/deb/rpm metadata.
-- `matrix:` and `jitsi-meet:` deep links in addition to `teamwork://join`.
+- `matrix:` and `jitsi-meet:` native protocol aliases in addition to `teamwork://`.
 - ICS or Microsoft Graph calendar integration for upcoming meetings.
 - Richer unified notifications and unread badges.
 - Optional local bundles of Element/Jitsi served through a secure custom protocol.

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeamWork Link Opener settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page">
+    <main class="shell">
+      <header class="hero">
+        <div class="brand">
+          <img src="icons/icon48.png" alt="" class="brand-icon" />
+          <div>
+            <h1>TeamWork Link Opener</h1>
+            <p>Open Jitsi meetings and Matrix/Element links in the TeamWork desktop application.</p>
+          </div>
+        </div>
+      </header>
+
+      <div id="managed-banner" class="banner hidden" role="status">
+        <strong>Managed by your organization.</strong>
+        <span>Settings marked as managed are supplied by enterprise policy and cannot be overridden.</span>
+      </div>
+
+      <form id="settings-form">
+        <section class="card">
+          <div class="section-heading">
+            <h2>Trusted Jitsi servers</h2>
+            <p>
+              One hostname per line, for example <code>jitsi.example.com</code>. Links on these
+              servers are converted to <code>teamwork://join</code> links.
+            </p>
+          </div>
+          <textarea
+            id="jitsi-domains"
+            class="input textarea"
+            rows="4"
+            spellcheck="false"
+            placeholder="meet.example.com&#10;*.jitsi.example.com"
+          ></textarea>
+          <label class="check-row">
+            <input id="detect-public-jitsi" type="checkbox" />
+            <span>
+              Also recognize public Jitsi services
+              <small>meet.jit.si, 8x8.vc and their subdomains. Enabled by default.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <h2>Matrix / Element</h2>
+            <p>
+              Element hostnames and <code>matrix.to</code> links can be opened with
+              <code>teamwork://matrix</code>. The Element URL must also be configured in TeamWork.
+            </p>
+          </div>
+          <textarea
+            id="element-domains"
+            class="input textarea"
+            rows="3"
+            spellcheck="false"
+            placeholder="element.example.com"
+          ></textarea>
+          <label class="check-row">
+            <input id="detect-matrix-to" type="checkbox" />
+            <span>
+              Recognize <code>matrix.to</code> permalinks
+              <small>Converts rooms and user links to your configured Element server.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <h2>Opening behavior</h2>
+            <p>
+              Automatic redirect is recommended for trusted company domains. Browsers may still
+              ask once for permission to open TeamWork.
+            </p>
+          </div>
+          <label class="field-label" for="mode">When a matching link is opened</label>
+          <select id="mode" class="input select">
+            <option value="auto">Open TeamWork automatically</option>
+            <option value="ask">Ask first</option>
+            <option value="click">Only when I click a link or use the extension</option>
+          </select>
+          <p id="mode-help" class="hint"></p>
+
+          <label class="check-row">
+            <input id="intercept-all-sites" type="checkbox" />
+            <span>
+              Intercept links on all websites
+              <small>
+                Needed for Outlook, Gmail, Teams, Slack, and other sites not covered by the default
+                list. Requests permission to read pages you visit.
+              </small>
+            </span>
+          </label>
+          <p id="permission-note" class="hint"></p>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <h2>Test a link</h2>
+            <p>Paste a Jitsi, matrix.to, or Element link to see how the extension will handle it.</p>
+          </div>
+          <div class="test-row">
+            <input
+              id="test-url"
+              class="input"
+              type="text"
+              spellcheck="false"
+              placeholder="https://meet.example.com/team-standup"
+            />
+            <button id="test-button" type="button" class="button secondary">Test</button>
+          </div>
+          <pre id="test-result" class="test-result">No link tested yet.</pre>
+        </section>
+
+        <div class="actions">
+          <button type="submit" class="button primary">Save settings</button>
+          <button id="reset-button" type="button" class="button ghost">Reset local settings</button>
+          <span id="status" class="status" role="status"></span>
+        </div>
+      </form>
+
+      <footer class="footer">
+        <p>
+          TeamWork must be installed and registered for <code>teamwork://</code> links. The
+          extension only converts links; it does not host Jitsi or Matrix.
+        </p>
+      </footer>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

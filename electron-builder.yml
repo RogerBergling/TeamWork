@@ -1,0 +1,71 @@
+appId: org.teamwork.desktop
+productName: TeamWork
+copyright: Copyright © 2026 TeamWork contributors
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+asar: true
+compression: maximum
+npmRebuild: false
+linux:
+  target:
+    - AppImage
+    - deb
+    - rpm
+  icon: build/icon.png
+  executableName: teamwork
+  category: Network;InstantMessaging;VideoConference
+  synopsis: Element and Jitsi desktop client with a Teams-like shell
+  description: Chat and meet with Element and Jitsi
+  maintainer: Roger Bergling <roger@users.noreply.github.com>
+  vendor: TeamWork contributors
+  syncDesktopName: true
+  desktop:
+    entry:
+      Name: TeamWork
+      GenericName: Team Collaboration Client
+      Comment: Chat and meet with Element and Jitsi
+      Categories: Network;InstantMessaging;VideoConference;
+      Keywords: chat;matrix;element;meeting;jitsi;video;conference;
+      StartupWMClass: teamwork
+      StartupNotify: 'true'
+appImage:
+  artifactName: TeamWork-${version}-${arch}.${ext}
+deb:
+  artifactName: TeamWork-${version}-${arch}.${ext}
+  priority: optional
+  packageCategory: net
+  recommends:
+    - libayatana-appindicator3-1
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libdrm2
+    - libgbm1
+    - libasound2
+rpm:
+  artifactName: TeamWork-${version}-${arch}.${ext}
+  packageCategory: Applications/Internet
+  depends:
+    - gtk3
+    - libnotify
+    - nss
+    - libXScrnSaver
+    - libXtst
+    - xdg-utils
+    - at-spi2-core
+    - libdrm
+    - mesa-libgbm
+    - alsa-lib

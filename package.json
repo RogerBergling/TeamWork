@@ -1,0 +1,53 @@
+{
+  "name": "teamwork",
+  "version": "0.1.0",
+  "description": "A Teams-like Linux desktop client for Element (Matrix) and Jitsi Meet.",
+  "desktopName": "teamwork.desktop",
+  "main": "./out/main/index.js",
+  "author": {
+    "name": "TeamWork contributors"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/RogerBergling/TeamWork",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RogerBergling/TeamWork.git"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "build": "npm run typecheck && electron-vite build",
+    "smoke": "npm run build && TEAMWORK_SMOKE_TEST=1 TEAMWORK_SMOKE_SCREENSHOT=teamwork-smoke.png electron . --no-sandbox --disable-gpu",
+    "icon": "node scripts/generate-icon.mjs",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --linux AppImage deb rpm",
+    "dist:appimage": "npm run build && electron-builder --linux AppImage",
+    "dist:deb": "npm run build && electron-builder --linux deb",
+    "dist:rpm": "npm run build && electron-builder --linux rpm"
+  },
+  "dependencies": {
+    "electron-log": "5.4.4",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

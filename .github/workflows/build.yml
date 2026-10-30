@@ -1,0 +1,67 @@
+name: Build Linux packages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install test and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb rpm
+
+      - name: Electron smoke test (Xvfb)
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1440x900x24' npm run smoke
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+
+      - name: Build AppImage, deb, and rpm
+        run: npm run dist
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum TeamWork-*.AppImage TeamWork-*.deb TeamWork-*.rpm > SHA256SUMS
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: teamwork-linux-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            release/TeamWork-*.AppImage
+            release/TeamWork-*.deb
+            release/TeamWork-*.rpm
+            release/SHA256SUMS

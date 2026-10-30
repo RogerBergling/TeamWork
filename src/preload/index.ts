@@ -17,9 +17,13 @@ const api: TeamWorkApi = {
   restartApp: () => ipcRenderer.invoke('app:restart'),
   activateView: (view) => ipcRenderer.send('view:activate', view),
   setViewBounds: (bounds) => ipcRenderer.send('view:bounds', bounds),
+  suspendViews: () => ipcRenderer.send('view:suspend'),
+  resumeViews: () => ipcRenderer.send('view:resume'),
   reloadView: (view) => ipcRenderer.send('view:reload', view),
   openViewInBrowser: (view) => ipcRenderer.send('view:open-external', view),
   clearSession: (view) => ipcRenderer.invoke('view:clear-session', view),
+  joinJitsiMeeting: (input) => ipcRenderer.invoke('view:join-jitsi', input),
+  rendererReady: () => ipcRenderer.send('app:renderer-ready'),
   selectScreenShare: (id, sourceId) =>
     ipcRenderer.send('screenshare:select', id, sourceId),
   getWindowState: () => ipcRenderer.invoke('app:window-state'),

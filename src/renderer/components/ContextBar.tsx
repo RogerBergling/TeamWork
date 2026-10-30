@@ -8,6 +8,7 @@ interface ContextBarProps {
   status: ViewStatus | null
   onReload: () => void
   onOpenExternal: () => void
+  onJoinMeeting: () => void
   onOpenSettings: () => void
   onOpenLogs: () => void
 }
@@ -51,6 +52,7 @@ export function ContextBar({
   status,
   onReload,
   onOpenExternal,
+  onJoinMeeting,
   onOpenSettings,
   onOpenLogs
 }: ContextBarProps): React.JSX.Element {
@@ -79,6 +81,17 @@ export function ContextBar({
       ) : null}
 
       <div className="contextbar-actions">
+        {active === 'jitsi' ? (
+          <button
+            type="button"
+            className="button secondary contextbar-button"
+            title="Join a Jitsi meeting by URL"
+            onClick={onJoinMeeting}
+          >
+            <Icon name="video" size={15} />
+            Join meeting
+          </button>
+        ) : null}
         {managed ? (
           <>
             <button

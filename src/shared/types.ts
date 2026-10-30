@@ -76,7 +76,20 @@ export interface WindowState {
   fullScreen: boolean
 }
 
-export type AppCommand = 'settings' | 'logs' | 'element' | 'jitsi' | 'reload' | 'toggle-debug'
+export type AppCommand =
+  | 'settings'
+  | 'logs'
+  | 'element'
+  | 'jitsi'
+  | 'reload'
+  | 'toggle-debug'
+  | 'join-meeting'
+
+export interface JoinMeetingResult {
+  ok: boolean
+  error?: string
+  url?: string
+}
 
 export interface ImportExportResult {
   ok: boolean
@@ -102,9 +115,13 @@ export interface TeamWorkApi {
   restartApp(): Promise<void>
   activateView(view: ShellView): void
   setViewBounds(bounds: ViewBounds): void
+  suspendViews(): void
+  resumeViews(): void
   reloadView(view: ManagedView): void
   openViewInBrowser(view: ManagedView): void
   clearSession(view: ManagedView): Promise<void>
+  joinJitsiMeeting(input: string): Promise<JoinMeetingResult>
+  rendererReady(): void
   selectScreenShare(id: number, sourceId: string | null): void
   getWindowState(): Promise<WindowState>
   windowMinimize(): void

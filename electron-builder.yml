@@ -14,6 +14,10 @@ extraResources:
 asar: true
 compression: maximum
 npmRebuild: false
+protocols:
+  - name: TeamWork
+    schemes:
+      - teamwork
 linux:
   target:
     - AppImage

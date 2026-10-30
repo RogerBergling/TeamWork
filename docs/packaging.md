@@ -105,6 +105,7 @@ For Wayland screen sharing, the host needs:
 - `appId: org.teamwork.desktop`
 - `desktopName: teamwork.desktop` and `syncDesktopName: true`
 - `StartupWMClass: teamwork`
+- `MimeType=x-scheme-handler/teamwork;` for deep-link handling
 - menu category `Network`
 - icon installed under `hicolor/512x512/apps/teamwork.png`
 - a `.desktop` entry with chat/conferencing categories and keywords
@@ -138,7 +139,10 @@ The current build is unsigned. For production distribution:
 The following was validated locally:
 
 - `npm run typecheck`
-- `npm test` — 30 tests
+- `npm test` — 40 tests
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server
+- Deep-link launch test: `teamwork://join?url=...` switched to the Jitsi view and preserved the full meeting URL including the JWT query
+- Join-dialog test: submitting a Jitsi URL through the renderer opened it in the Jitsi view
+- AppImage self-registration: `~/.local/share/applications/teamwork.desktop` was created and `xdg-mime` reported `teamwork.desktop` for `x-scheme-handler/teamwork`
 - The built **AppImage**, extracted **.deb**, and extracted **.rpm** each launched successfully with the smoke test and reported both views as `ready`

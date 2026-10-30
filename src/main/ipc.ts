@@ -46,9 +46,16 @@ export function registerIpc(controller: AppController): void {
   handle('app:restart', () => controller.restart())
   handle('app:window-state', () => controller.getWindowState())
 
+  on('app:renderer-ready', () => controller.markRendererReady())
+
   handle('view:clear-session', (view) => {
     if (!isManagedView(view)) throw new Error('Invalid view')
     return controller.clearSession(view)
+  })
+
+  handle('view:join-jitsi', (input) => {
+    if (typeof input !== 'string') return { ok: false, error: 'Invalid meeting URL.' }
+    return controller.joinJitsiMeeting(input)
   })
 
   on('view:activate', (view) => {
@@ -68,6 +75,9 @@ export function registerIpc(controller: AppController): void {
       height: numbers[3] as number
     })
   })
+
+  on('view:suspend', () => controller.suspendViews())
+  on('view:resume', () => controller.resumeViews())
 
   on('view:reload', (view) => {
     if (isManagedView(view)) controller.reloadView(view)

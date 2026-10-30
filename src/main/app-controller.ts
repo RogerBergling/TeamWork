@@ -19,8 +19,14 @@ import { TrayController } from './tray'
 import { createShellWindow } from './shell-window'
 import { chooseLogo, readLogoDataUrl, trayIconFor, windowIconFor } from './logo'
 import type { Settings } from '../shared/settings'
+import {
+  findDeepLinkInArgv,
+  resolveJitsiMeetingInput,
+  safeUrlForLog
+} from '../shared/deep-links'
 import type {
   ImportExportResult,
+  JoinMeetingResult,
   LogSnapshot,
   ManagedView,
   SettingsMeta,
@@ -39,6 +45,9 @@ export class AppController {
   private settings: Settings
   private quitting = false
   private sessionsCleared = false
+  private shellReady = false
+  private rendererReady = false
+  private pendingDeepLink: string | null = null
   private boundsTimer: NodeJS.Timeout | null = null
 
   constructor(
@@ -85,11 +94,18 @@ export class AppController {
       this.window = null
       this.views = null
     })
+    this.window.webContents.on('did-start-navigation', (event) => {
+      if (event.isMainFrame && !event.isSameDocument) {
+        this.rendererReady = false
+      }
+    })
     this.window.webContents.on('did-finish-load', () => {
+      this.shellReady = true
       this.sendWindowState()
       for (const status of this.views?.getStatuses() ?? []) {
         this.send('view:status', status)
       }
+      this.flushPendingDeepLink()
     })
     this.window.webContents.on('render-process-gone', (_event, details) => {
       this.logger.error('The TeamWork interface renderer stopped', details)
@@ -255,6 +271,37 @@ export class AppController {
     }
   }
 
+  handleSecondInstance(argv: string[]): void {
+    this.showWindow()
+    const deepLink = findDeepLinkInArgv(argv)
+    if (deepLink) this.handleDeepLink(deepLink)
+  }
+
+  handleDeepLink(raw: string): void {
+    this.pendingDeepLink = raw
+    this.flushPendingDeepLink()
+  }
+
+  markRendererReady(): void {
+    this.rendererReady = true
+    this.flushPendingDeepLink()
+  }
+
+  joinJitsiMeeting(input: string): JoinMeetingResult {
+    const result = resolveJitsiMeetingInput(input, this.settings.servers.jitsiUrl)
+    if (!result.ok) {
+      this.logger.warn(`Rejected Jitsi meeting link: ${result.error}`)
+      return { ok: false, error: result.error }
+    }
+    if (!this.views) {
+      return { ok: false, error: 'The Jitsi view is not available.' }
+    }
+
+    this.logger.info(`Opening Jitsi meeting ${safeUrlForLog(result.url)}`)
+    this.views.openJitsiMeeting(result.url)
+    return { ok: true, url: result.url }
+  }
+
   activateView(view: ShellView): void {
     if (view === 'element' || view === 'jitsi') {
       this.views?.activate(view)
@@ -265,6 +312,14 @@ export class AppController {
 
   setViewBounds(bounds: ViewBounds): void {
     this.views?.setBounds(bounds)
+  }
+
+  suspendViews(): void {
+    this.views?.setSuspended(true)
+  }
+
+  resumeViews(): void {
+    this.views?.setSuspended(false)
   }
 
   reloadView(view: ManagedView): void {
@@ -326,6 +381,11 @@ export class AppController {
     this.send('app:command', view)
   }
 
+  showJoinMeetingDialog(): void {
+    this.showView('jitsi')
+    this.send('app:command', 'join-meeting')
+  }
+
   reloadActive(): void {
     const active = this.views?.activeView
     if (active) this.views?.reload(active)
@@ -355,6 +415,31 @@ export class AppController {
     this.quitting = true
     this.saveWindowState()
     app.quit()
+  }
+
+  private flushPendingDeepLink(): void {
+    if (!this.shellReady || !this.rendererReady || !this.pendingDeepLink || !this.views) return
+
+    const raw = this.pendingDeepLink
+    this.pendingDeepLink = null
+    this.showWindow()
+
+    const result = this.joinJitsiMeeting(raw)
+    if (!result.ok) {
+      const options: Electron.MessageBoxOptions = {
+        type: 'warning',
+        title: 'Could not open Jitsi meeting',
+        message: 'TeamWork could not open the meeting link.',
+        detail: result.error ?? 'The meeting URL is invalid.',
+        buttons: ['OK'],
+        noLink: true
+      }
+      if (this.window) void dialog.showMessageBox(this.window, options)
+      else void dialog.showMessageBox(options)
+      return
+    }
+
+    this.showView('jitsi')
   }
 
   private applySettingsSafely(previous: Settings): void {
@@ -432,6 +517,11 @@ export class AppController {
             label: 'Jitsi',
             accelerator: 'CmdOrCtrl+2',
             click: () => this.showView('jitsi')
+          },
+          {
+            label: 'Join Jitsi meeting…',
+            accelerator: 'CmdOrCtrl+J',
+            click: () => this.showJoinMeetingDialog()
           },
           { type: 'separator' },
           {
@@ -582,6 +672,33 @@ export class AppController {
           await new Promise((resolve) => setTimeout(resolve, 300))
         }
 
+        if (process.env.TEAMWORK_SMOKE_JOIN_DIALOG === '1') {
+          this.showJoinMeetingDialog()
+          await new Promise((resolve) => setTimeout(resolve, 600))
+        }
+
+        let uiJoinTest: Record<string, unknown> | null = null
+        if (process.env.TEAMWORK_SMOKE_UI_JOIN_URL) {
+          uiJoinTest = (await window.webContents.executeJavaScript(`(async () => {
+            const input = document.querySelector('#join-meeting-url')
+            if (!input) return { ok: false, error: 'Join input not found' }
+            const setter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype,
+              'value'
+            ).set
+            setter.call(input, ${JSON.stringify(process.env.TEAMWORK_SMOKE_UI_JOIN_URL)})
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            input.closest('form').requestSubmit()
+            await new Promise((resolve) => setTimeout(resolve, 1200))
+            const statuses = await window.teamwork.getViewStatuses()
+            return {
+              ok: !document.querySelector('.join-modal'),
+              statuses
+            }
+          })()`)) as Record<string, unknown>
+        }
+
         const screenshotPath = process.env.TEAMWORK_SMOKE_SCREENSHOT
         const image = await window.webContents.capturePage()
         const png = image.toPNG()
@@ -607,12 +724,20 @@ export class AppController {
           viewCaptured: Boolean(viewPng),
           statuses,
           saveTest,
+          uiJoinTest,
           rendererUrl: window.webContents.getURL()
         }
         this.logger.info(`SMOKE_TEST ${JSON.stringify(result)}`)
         const savePassed = saveTest === null || saveTest.ok === true
+        const joinPassed = uiJoinTest === null || uiJoinTest.ok === true
         app.exit(
-          state.rail === true && state.settings === true && expectedReady && savePassed ? 0 : 1
+          state.rail === true &&
+            state.settings === true &&
+            expectedReady &&
+            savePassed &&
+            joinPassed
+            ? 0
+            : 1
         )
       } catch (error) {
         this.logger.error('Smoke test failed', error)

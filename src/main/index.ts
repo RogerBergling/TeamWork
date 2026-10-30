@@ -6,6 +6,8 @@ import { AppLogger } from './logger'
 import { WindowStateStore } from './window-state'
 import { AppController } from './app-controller'
 import { registerIpc } from './ipc'
+import { registerTeamWorkProtocol } from './protocol-registration'
+import { findDeepLinkInArgv } from '../shared/deep-links'
 
 const paths = resolveAppPaths()
 app.setName('TeamWork')
@@ -41,6 +43,8 @@ if (ozone !== 'x11') {
 }
 
 let controller: AppController | null = null
+let pendingSecondInstanceArgv: string[] | null = null
+let initialDeepLink = findDeepLinkInArgv(process.argv)
 const settingsProvider = () => controller?.snapshot().settings ?? loaded.settings
 
 app.on('certificate-error', (event, _webContents, url, error, _certificate, callback) => {
@@ -70,8 +74,21 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
-    controller?.showWindow()
+  app.on('second-instance', (_event, argv) => {
+    if (controller) {
+      controller.handleSecondInstance(argv)
+    } else {
+      pendingSecondInstanceArgv = argv
+    }
+  })
+
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    if (controller) {
+      controller.handleDeepLink(url)
+    } else {
+      initialDeepLink = url
+    }
   })
 
   app.on('window-all-closed', () => {
@@ -88,6 +105,16 @@ if (!gotLock) {
       controller = new AppController(paths, configStore, logger, windowState)
       controller.start()
       registerIpc(controller)
+      void registerTeamWorkProtocol(logger)
+
+      if (pendingSecondInstanceArgv) {
+        controller.handleSecondInstance(pendingSecondInstanceArgv)
+        pendingSecondInstanceArgv = null
+      }
+      if (initialDeepLink) {
+        controller.handleDeepLink(initialDeepLink)
+        initialDeepLink = null
+      }
     })
     .catch((error: unknown) => {
       logger.error('Could not start TeamWork', error)

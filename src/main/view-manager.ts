@@ -14,6 +14,7 @@ import type {
   ViewBounds
 } from '../shared/types'
 import type { Settings } from '../shared/settings'
+import { safeUrlForLog } from '../shared/deep-links'
 import { shouldOpenExternally, isExternalProtocolAllowed, parseHttpUrl } from '../shared/urls'
 import type { AppLogger } from './logger'
 import type { SessionManager } from './session-manager'
@@ -23,6 +24,7 @@ interface ManagedEntry {
   view: WebContentsView
   status: ViewStatus
   configuredUrl: string
+  targetUrl: string
   hideUntilReady: boolean
   lastLoadFailed: boolean
   cssKey?: string
@@ -46,6 +48,7 @@ export class ViewManager {
   private readonly entries = new Map<ManagedView, ManagedEntry>()
   private active: ManagedView | null = null
   private bounds: ViewBounds = { x: 0, y: 0, width: 0, height: 0 }
+  private suspended = false
   private screenPickerOpen = false
   private pendingScreenShare: PendingScreenShare | null = null
   private nextScreenShareId = 1
@@ -103,6 +106,11 @@ export class ViewManager {
     this.updateVisibility()
   }
 
+  setSuspended(suspended: boolean): void {
+    this.suspended = suspended
+    this.updateVisibility()
+  }
+
   applySettings(settings: Settings, previous: Settings): void {
     this.settings = settings
 
@@ -150,7 +158,7 @@ export class ViewManager {
     if (!entry) return
 
     if (entry.status.state === 'error' || entry.status.state === 'unconfigured') {
-      this.load(view)
+      this.load(view, entry.targetUrl || undefined)
       return
     }
 
@@ -161,10 +169,15 @@ export class ViewManager {
   openInBrowser(view: ManagedView): void {
     const entry = this.entries.get(view)
     if (!entry) return
-    const target = entry.status.url || entry.configuredUrl
+    const target = entry.status.url || entry.targetUrl || entry.configuredUrl
     if (target && parseHttpUrl(target)) {
       void shell.openExternal(target)
     }
+  }
+
+  openJitsiMeeting(url: string): void {
+    this.load('jitsi', url)
+    this.activate('jitsi')
   }
 
   toggleDevTools(view: ManagedView): void {
@@ -241,6 +254,7 @@ export class ViewManager {
         url: ''
       },
       configuredUrl: '',
+      targetUrl: '',
       hideUntilReady: true,
       lastLoadFailed: false
     }
@@ -291,7 +305,7 @@ export class ViewManager {
           url: validatedURL
         })
         this.logger.error(
-          `${VIEW_LABEL[kind]} failed to load ${validatedURL}: ${errorDescription} (${errorCode})`
+          `${VIEW_LABEL[kind]} failed to load ${safeUrlForLog(validatedURL)}: ${errorDescription} (${errorCode})`
         )
         this.updateVisibility()
       }
@@ -374,7 +388,9 @@ export class ViewManager {
       }
 
       if (!parseHttpUrl(url)) {
-        this.logger.warn(`Blocked unsupported popup URL from ${VIEW_LABEL[kind]}: ${url}`)
+        this.logger.warn(
+          `Blocked unsupported popup URL from ${VIEW_LABEL[kind]}: ${safeUrlForLog(url)}`
+        )
         return { action: 'deny' }
       }
 
@@ -388,12 +404,12 @@ export class ViewManager {
           this.settings.authentication.trustedAuthOrigins
         )
       ) {
-        this.logger.debug(`Opening external popup in the system browser: ${url}`)
+        this.logger.debug(`Opening external popup in the system browser: ${safeUrlForLog(url)}`)
         void shell.openExternal(url)
         return { action: 'deny' }
       }
 
-      this.logger.debug(`Allowing in-app popup for ${VIEW_LABEL[kind]}: ${url}`)
+      this.logger.debug(`Allowing in-app popup for ${VIEW_LABEL[kind]}: ${safeUrlForLog(url)}`)
       return {
         action: 'allow',
         overrideBrowserWindowOptions: popupOptions
@@ -426,7 +442,7 @@ export class ViewManager {
         )
       ) {
         event.preventDefault()
-        this.logger.debug(`Opening navigation target in system browser: ${target}`)
+        this.logger.debug(`Opening navigation target in system browser: ${safeUrlForLog(target)}`)
         void shell.openExternal(target)
       }
     })
@@ -445,13 +461,13 @@ export class ViewManager {
         )
       ) {
         event.preventDefault()
-        this.logger.debug(`Opening redirect target in system browser: ${target}`)
+        this.logger.debug(`Opening redirect target in system browser: ${safeUrlForLog(target)}`)
         void shell.openExternal(target)
       }
     })
   }
 
-  private load(kind: ManagedView): void {
+  private load(kind: ManagedView, requestedUrl?: string): void {
     const entry = this.entries.get(kind)
     if (!entry) return
 
@@ -459,8 +475,10 @@ export class ViewManager {
       kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
     ).trim()
     entry.configuredUrl = configured
+    const requested = requestedUrl?.trim() || configured
+    entry.targetUrl = requested
 
-    if (configured === '') {
+    if (requested === '') {
       entry.hideUntilReady = true
       this.setStatus(entry, {
         view: kind,
@@ -472,14 +490,14 @@ export class ViewManager {
       return
     }
 
-    const validated = parseHttpUrl(configured)
+    const validated = parseHttpUrl(requested)
     if (!validated) {
       entry.hideUntilReady = true
       this.setStatus(entry, {
         view: kind,
         state: 'error',
         message: 'The configured URL is not a valid http:// or https:// address.',
-        url: configured
+        url: requested
       })
       this.updateVisibility()
       return
@@ -487,15 +505,17 @@ export class ViewManager {
 
     entry.hideUntilReady = true
     entry.lastLoadFailed = false
-    this.setStatus(entry, { view: kind, state: 'loading', url: configured })
-    this.logger.info(`Loading ${VIEW_LABEL[kind]} from ${configured}`)
+    this.setStatus(entry, { view: kind, state: 'loading', url: requested })
+    this.logger.info(`Loading ${VIEW_LABEL[kind]} from ${safeUrlForLog(requested)}`)
 
     entry.view.webContents.loadURL(validated.toString()).catch((error: unknown) => {
       // did-fail-load reports the user-facing error. Keep this at debug level to
       // avoid duplicate error lines for the same navigation.
       const message = error instanceof Error ? error.message : String(error)
       if (!message.includes('ERR_ABORTED')) {
-        this.logger.debug(`loadURL rejected for ${VIEW_LABEL[kind]}: ${message}`)
+        this.logger.debug(
+          `loadURL rejected for ${VIEW_LABEL[kind]} (${safeUrlForLog(requested)})`
+        )
       }
     })
   }
@@ -508,6 +528,7 @@ export class ViewManager {
   private updateVisibility(): void {
     for (const entry of this.entries.values()) {
       const visible =
+        !this.suspended &&
         !this.screenPickerOpen &&
         this.active === entry.kind &&
         entry.status.state === 'ready' &&

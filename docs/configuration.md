@@ -75,6 +75,8 @@ The file is validated with a Zod schema. Unknown fields are removed, missing fie
 | `TEAMWORK_SMOKE_SCREENSHOT` | Output PNG path used by the smoke test. |
 | `TEAMWORK_SMOKE_EXPECT_READY` | `element` or `jitsi`; fails the smoke test unless that view reaches `ready`. |
 | `TEAMWORK_SMOKE_SAVE_TEST` | `1` saves a setting through the real IPC path and verifies it was persisted. |
+| `TEAMWORK_SMOKE_JOIN_DIALOG` | `1` opens the Join meeting dialog during the smoke test. |
+| `TEAMWORK_SMOKE_UI_JOIN_URL` | Jitsi URL submitted by the smoke test through the Join dialog. |
 
 ## Fields
 

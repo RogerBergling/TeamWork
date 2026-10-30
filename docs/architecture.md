@@ -61,6 +61,17 @@ Both embedded clients authenticate themselves. TeamWork never sees credentials.
 
 SAML and OpenID are ultimately deployment concerns. A shared IdP (Keycloak, Authentik, Entra ID, etc.) can provide a common identity for Matrix and Jitsi, but the client does not unify accounts by itself.
 
+## Jitsi deep links
+
+`teamwork://join?url=...` links are parsed in the main process. The Jitsi URL is validated against the configured Jitsi origin, then the Jitsi `WebContentsView` navigates to the full meeting URL, preserving JWT and query parameters. Query strings and tokens are redacted from log messages.
+
+Linux registration differs by package format:
+
+- deb/rpm: electron-builder includes `MimeType=x-scheme-handler/teamwork` in the installed desktop entry.
+- AppImage: on first run TeamWork writes a user-level desktop entry and icon under `~/.local/share`, then calls `xdg-mime` to set the association.
+
+Initial process arguments and `second-instance` arguments are both scanned for `teamwork://` links. A renderer-ready handshake prevents the initial view selection from overwriting a deep-link navigation.
+
 ## Permissions
 
 `SessionManager` installs permission handlers per partition:
@@ -120,7 +131,8 @@ One build produces:
 ## Future work
 
 - Auto-update channel with signed AppImage/deb/rpm metadata.
-- Deep links (`teamwork://`, `matrix:`, `jitsi-meet:`) into the correct view.
+- `matrix:` and `jitsi-meet:` deep links in addition to `teamwork://join`.
+- ICS or Microsoft Graph calendar integration for upcoming meetings.
 - Richer unified notifications and unread badges.
 - Optional local bundles of Element/Jitsi served through a secure custom protocol.
 - Automated end-to-end tests with Playwright driving the shell.

@@ -17,6 +17,7 @@ import { ContentState } from './components/ContentState'
 import { SettingsView } from './components/SettingsView'
 import { LogsView } from './components/LogsView'
 import { ScreenShareModal } from './components/ScreenShareModal'
+import { JoinMeetingModal } from './components/JoinMeetingModal'
 import { Toast, type ToastKind, type ToastMessage } from './components/Toast'
 import { Icon } from './lib/icons'
 import { bridge } from './lib/bridge'
@@ -55,6 +56,7 @@ export default function App(): React.JSX.Element {
   })
   const [logoData, setLogoData] = useState<string | null>(null)
   const [screenRequest, setScreenRequest] = useState<ScreenShareRequest | null>(null)
+  const [joinMeetingOpen, setJoinMeetingOpen] = useState(false)
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const toastTimer = useRef<number | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -97,6 +99,7 @@ export default function App(): React.JSX.Element {
             for (const status of initialStatuses) next[status.view] = status
             return next
           })
+          window.teamwork.rendererReady()
         }
       } catch (error) {
         if (!cancelled) {
@@ -124,7 +127,12 @@ export default function App(): React.JSX.Element {
     })
     const unsubscribeCommand = bridge.onCommand((command) => {
       if (command === 'element' || command === 'jitsi' || command === 'settings' || command === 'logs') {
+        setJoinMeetingOpen(false)
         setActive(command)
+      }
+      if (command === 'join-meeting') {
+        setActive('jitsi')
+        setJoinMeetingOpen(true)
       }
     })
     const unsubscribeWindow = bridge.onWindowState((state) => setWindowState(state))
@@ -142,6 +150,14 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     window.teamwork?.activateView(active)
   }, [active])
+
+  useEffect(() => {
+    if (joinMeetingOpen) window.teamwork.suspendViews()
+    else window.teamwork.resumeViews()
+    return () => {
+      if (joinMeetingOpen) window.teamwork.resumeViews()
+    }
+  }, [joinMeetingOpen])
 
   useLayoutEffect(() => {
     if (!ready) return
@@ -246,6 +262,12 @@ export default function App(): React.JSX.Element {
     await window.teamwork.clearSession(view)
   }, [])
 
+  const handleJoinJitsi = useCallback(async (input: string) => {
+    const result = await window.teamwork.joinJitsiMeeting(input)
+    if (result.ok) setActive('jitsi')
+    return result
+  }, [])
+
   const selectScreenSource = (sourceId: string): void => {
     if (!screenRequest) return
     window.teamwork.selectScreenShare(screenRequest.id, sourceId)
@@ -316,6 +338,7 @@ export default function App(): React.JSX.Element {
             onOpenExternal={() => {
               if (managedActive) window.teamwork.openViewInBrowser(active)
             }}
+            onJoinMeeting={() => setJoinMeetingOpen(true)}
             onOpenSettings={() => setActive('settings')}
             onOpenLogs={() => setActive('logs')}
           />
@@ -370,6 +393,18 @@ export default function App(): React.JSX.Element {
           request={screenRequest}
           onSelect={selectScreenSource}
           onCancel={cancelScreenShare}
+        />
+      ) : null}
+
+      {joinMeetingOpen ? (
+        <JoinMeetingModal
+          configuredUrl={settings.servers.jitsiUrl}
+          onJoin={handleJoinJitsi}
+          onClose={() => setJoinMeetingOpen(false)}
+          onOpenSettings={() => {
+            setJoinMeetingOpen(false)
+            setActive('settings')
+          }}
         />
       ) : null}
 

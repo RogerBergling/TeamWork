@@ -81,7 +81,7 @@ Matrix links use `teamwork://matrix?url=...`. `matrix.to` room/user links are co
 - Content scripts intercept link clicks on common mail/chat hosts and unwrap Outlook SafeLinks URLs.
 - Optional all-site interception is gated behind an optional host permission.
 - `webNavigation` handles links opened by external applications with automatic, ask-first, or click-only modes.
-- Trusted Jitsi and Element FQDNs are configured by the user or supplied through managed storage. Public Jitsi detection is opt-in.
+- Trusted Jitsi and Element FQDNs are configured by the user or supplied through managed storage. Known public Jitsi services are detected by default; generic self-hosted detection is not enabled.
 - The extension never bypasses the desktop app’s origin validation; it only constructs the deep link.
 - The extension is built with esbuild into `browser-extension/dist` and packaged as a store-ready zip.
 
@@ -150,3 +150,5 @@ One build produces:
 - Optional local bundles of Element/Jitsi served through a secure custom protocol.
 - Automated end-to-end tests with Playwright driving the shell.
 - ARM64 packaging.
+
+See [Roadmap and known gaps](roadmap.md) for the prioritized backlog.

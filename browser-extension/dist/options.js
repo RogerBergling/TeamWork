@@ -299,12 +299,8 @@
   async function requestAllSites() {
     try {
       const granted = await hasAllSitesPermission();
-      if (!granted) {
-        const result = await chrome.permissions.request({ origins: allSitesOrigins() });
-        if (!result) return false;
-      }
-      await syncAllSitesContentScript(true);
-      return true;
+      if (granted) return true;
+      return await chrome.permissions.request({ origins: allSitesOrigins() });
     } catch {
       return false;
     }
@@ -341,6 +337,7 @@
     }
     try {
       await saveSettings(next);
+      await syncAllSitesContentScript(next.interceptAllSites);
       setStatus("Settings saved.");
       await updatePermissionNote();
     } catch (error) {
@@ -394,6 +391,7 @@
     if (managed.interceptAllSites === true) return;
     void requestAllSites().then((granted) => {
       if (!granted) interceptAllSites.checked = false;
+      else setStatus("Permission granted. Click Save settings to enable all-site interception.");
       void updatePermissionNote();
     });
   });

@@ -8,6 +8,7 @@ From the repository root:
 
 ```bash
 npm run extension:build
+npm run extension:validate
 ```
 
 Load `browser-extension/dist` as an unpacked extension:

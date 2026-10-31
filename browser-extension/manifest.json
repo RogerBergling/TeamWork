@@ -4,6 +4,7 @@
   "short_name": "TeamWork Links",
   "version": "0.1.0",
   "description": "Open Jitsi meetings and Matrix/Element links in the TeamWork desktop application.",
+  "homepage_url": "https://github.com/RogerBergling/TeamWork",
   "minimum_chrome_version": "110",
   "permissions": [
     "storage",

@@ -49,6 +49,9 @@ jobs:
       - name: Build AppImage, deb, and rpm
         run: npm run dist
 
+      - name: Validate browser extension
+        run: npm run extension:validate
+
       - name: Generate checksums
         run: |
           cd release

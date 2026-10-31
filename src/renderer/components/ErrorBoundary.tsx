@@ -18,6 +18,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('Renderer crash', error, info.componentStack)
+    window.teamwork?.reportRendererError(
+      `React renderer crash: ${error.message}`,
+      `${error.stack ?? ''}\n${info.componentStack ?? ''}`
+    )
   }
 
   render(): ReactNode {

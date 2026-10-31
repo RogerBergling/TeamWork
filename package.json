@@ -26,19 +26,21 @@
     "smoke": "npm run build && TEAMWORK_SMOKE_TEST=1 TEAMWORK_SMOKE_SCREENSHOT=teamwork-smoke.png electron . --no-sandbox --disable-gpu",
     "extension:build": "node browser-extension/build.mjs",
     "extension:zip": "node scripts/zip-extension.mjs",
+    "extension:validate": "node scripts/validate-extension.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run extension:build && npm run extension:zip && npm run extension:validate",
     "icon": "node scripts/generate-icon.mjs",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux AppImage deb rpm",
-    "dist:appimage": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux AppImage",
-    "dist:deb": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux deb",
-    "dist:rpm": "npm run build && npm run extension:build && npm run extension:zip && electron-builder --linux rpm"
+    "dist": "npm run verify && electron-builder --linux AppImage deb rpm",
+    "dist:appimage": "npm run verify && electron-builder --linux AppImage",
+    "dist:deb": "npm run verify && electron-builder --linux deb",
+    "dist:rpm": "npm run verify && electron-builder --linux rpm"
   },
   "dependencies": {
     "electron-log": "5.4.4",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/chrome": "^0.3.7",
+    "@types/chrome": "0.3.7",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -46,7 +48,7 @@
     "electron": "45.1.0",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
-    "esbuild": "^0.28.2",
+    "esbuild": "0.28.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "sharp": "0.35.5",

@@ -9,6 +9,7 @@ import {
 } from 'electron'
 import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { AppPaths } from './paths'
 import type { ConfigStore, SaveConfigResult } from './config-store'
 import type { AppLogger } from './logger'
@@ -273,6 +274,16 @@ export class AppController {
     }
   }
 
+  async openNotices(): Promise<void> {
+    const noticesPath = app.isPackaged
+      ? join(process.resourcesPath, 'THIRD_PARTY_NOTICES.md')
+      : join(app.getAppPath(), 'THIRD_PARTY_NOTICES.md')
+    const failure = await shell.openPath(noticesPath)
+    if (failure) {
+      this.logger.warn(`Could not open third-party notices at ${noticesPath}`, failure)
+    }
+  }
+
   handleSecondInstance(argv: string[]): void {
     this.showWindow()
     const deepLink = findDeepLinkInArgv(argv)
@@ -287,6 +298,12 @@ export class AppController {
   markRendererReady(): void {
     this.rendererReady = true
     this.flushPendingDeepLink()
+  }
+
+  reportRendererError(message: string, details?: string): void {
+    const safeMessage = message.replace(/[\r\n]+/g, ' ').slice(0, 1000)
+    const safeDetails = details?.slice(0, 4000)
+    this.logger.error(`Renderer error: ${safeMessage}`, safeDetails)
   }
 
   joinJitsiMeeting(input: string): JoinMeetingResult {
@@ -583,6 +600,10 @@ export class AppController {
           {
             label: 'Documentation',
             click: () => void shell.openExternal('https://github.com/RogerBergling/TeamWork#readme')
+          },
+          {
+            label: 'Third-party notices',
+            click: () => void this.openNotices()
           },
           { type: 'separator' },
           { label: `About ${name}`, click: () => void this.showAbout() }

@@ -1,6 +1,6 @@
 # Packaging
 
-TeamWork produces three Linux artifacts from one codebase:
+TeamWork produces three Linux packages plus a browser-extension archive from one codebase:
 
 | Artifact | File | Use case |
 |---|---|---|
@@ -36,8 +36,7 @@ AppImage and deb do not require `rpmbuild`.
 
 ```bash
 npm ci
-npm run typecheck
-npm test
+npm run verify
 npm run dist
 ```
 
@@ -136,9 +135,13 @@ The current build is unsigned. For production distribution:
 - If AppImage updates are added later, sign the update metadata and use HTTPS.
 - Consider a repository (APT/YUM) rather than distributing bare packages.
 
-## CI
+## CI and releases
 
-`.github/workflows/build.yml` runs type checks, unit tests, the Electron smoke test under Xvfb, and all three package targets on Ubuntu. It installs `rpm` for the RPM build and uploads the artifacts.
+`.github/workflows/build.yml` runs type checks, unit tests, the Electron smoke test under Xvfb, extension validation, and all three package targets on Ubuntu. It installs `rpm` for the RPM build and uploads the artifacts plus checksums.
+
+`.github/workflows/release.yml` runs the same validation when a `v<version>` tag is pushed. It verifies the tag matches `package.json`, builds all artifacts, generates `SHA256SUMS`, and publishes a GitHub Release with the AppImage, deb, rpm, browser-extension zip, and checksums.
+
+The release workflow is the preferred distribution path. The large binaries committed during early development should eventually be removed from Git history or moved to Git LFS; see [Roadmap](roadmap.md).
 
 ## Verification performed in this repository
 
@@ -146,6 +149,7 @@ The following was validated locally:
 
 - `npm run typecheck`
 - `npm test` — 59 tests
+- `npm run verify` — type checks, tests, builds, extension packaging and manifest validation
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server
 - Deep-link launch test: `teamwork://join?url=...` switched to the Jitsi view and preserved the full meeting URL including the JWT query

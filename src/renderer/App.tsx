@@ -148,6 +148,30 @@ export default function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    const onError = (event: ErrorEvent): void => {
+      window.teamwork?.reportRendererError(
+        `Uncaught renderer error: ${event.message}`,
+        `${event.filename}:${event.lineno}:${event.colno}\n${event.error?.stack ?? ''}`
+      )
+    }
+    const onRejection = (event: PromiseRejectionEvent): void => {
+      const reason = event.reason
+      window.teamwork?.reportRendererError(
+        'Unhandled renderer promise rejection',
+        reason instanceof Error
+          ? `${reason.message}\n${reason.stack ?? ''}`
+          : String(reason).slice(0, 2000)
+      )
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onRejection)
+    }
+  }, [])
+
+  useEffect(() => {
     window.teamwork?.activateView(active)
   }, [active])
 

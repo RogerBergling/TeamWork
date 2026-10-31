@@ -48,6 +48,11 @@ export function registerIpc(controller: AppController): void {
 
   on('app:renderer-ready', () => controller.markRendererReady())
 
+  on('app:renderer-error', (message, details) => {
+    if (typeof message !== 'string') return
+    controller.reportRendererError(message, typeof details === 'string' ? details : undefined)
+  })
+
   handle('view:clear-session', (view) => {
     if (!isManagedView(view)) throw new Error('Invalid view')
     return controller.clearSession(view)

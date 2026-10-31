@@ -15,6 +15,8 @@ const api: TeamWorkApi = {
   clearLogs: () => ipcRenderer.invoke('logs:clear'),
   openLogFolder: () => ipcRenderer.invoke('logs:open'),
   restartApp: () => ipcRenderer.invoke('app:restart'),
+  reportRendererError: (message, details) =>
+    ipcRenderer.send('app:renderer-error', message, details),
   activateView: (view) => ipcRenderer.send('view:activate', view),
   setViewBounds: (bounds) => ipcRenderer.send('view:bounds', bounds),
   suspendViews: () => ipcRenderer.send('view:suspend'),

@@ -113,6 +113,7 @@ export interface TeamWorkApi {
   clearLogs(): Promise<void>
   openLogFolder(): Promise<void>
   restartApp(): Promise<void>
+  reportRendererError(message: string, details?: string): void
   activateView(view: ShellView): void
   setViewBounds(bounds: ViewBounds): void
   suspendViews(): void

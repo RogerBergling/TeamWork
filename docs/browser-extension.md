@@ -173,6 +173,7 @@ Without that policy, Chrome/Edge may show an “Open TeamWork?” confirmation o
 
 ```bash
 npm run extension:build
+npm run extension:validate
 npm run extension:zip
 ```
 

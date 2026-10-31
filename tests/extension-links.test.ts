@@ -82,7 +82,7 @@ describe('browser extension link matching', () => {
   it('normalizes domain inputs', () => {
     expect(
       normalizeDomains([
-        'https://Meet.Example.com/path',
+        'https://Meet.Example.com:8443/path',
         '*.jitsi.example.com',
         'meet.example.com',
         'not a domain'

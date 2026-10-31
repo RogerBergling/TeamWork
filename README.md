@@ -48,6 +48,7 @@ This is also why the application can support the complete Jitsi and Element feat
 - Node.js **22.12 or newer** and npm for development.
 - Runtime libraries normally present on a desktop Linux installation (GTK 3, NSS, ALSA, GBM, X11/Wayland).
 - `rpmbuild` only when producing an RPM package (`sudo apt install rpm` on Ubuntu/Debian).
+- `zip` when packaging the browser extension.
 
 ## Quick start
 
@@ -70,13 +71,9 @@ For automatic conversion of normal HTTPS links, install the [Chrome/Edge extensi
 ## Build and package
 
 ```bash
-npm run typecheck     # TypeScript checks for main, preload, and renderer
-npm test              # 59 unit tests
-npm run build         # production bundles in out/
+npm run verify        # typecheck + tests + builds + extension validation
 npm run smoke         # real Electron smoke test (needs a display or Xvfb)
-npm run extension:build
-npm run extension:zip # Chrome/Edge zip in release/
-npm run dist          # AppImage + deb + rpm (+ extension zip) in release/
+npm run dist          # AppImage + deb + rpm + extension zip in release/
 ```
 
 Individual targets:
@@ -164,14 +161,14 @@ scripts/           Icon and extension packaging scripts
 
 The repository is validated with:
 
-- `npm run typecheck`
+- `npm run verify` — type checks, 59 unit tests, production builds, extension packaging, and manifest validation
 - `npm test` — 59 tests across settings, URL policy, deep links, extension link matching, config store, window state, and paths
-- `npm run build`
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test
 - AppImage self-registration verified with `xdg-mime query default x-scheme-handler/teamwork`
-- Browser extension built and packaged; link matching, SafeLinks unwrapping, Jitsi/Matrix conversion covered by unit tests
+- Browser extension built, manifest-validated, and packaged; link matching, SafeLinks unwrapping, Jitsi/Matrix conversion covered by unit tests
+- Tag-based GitHub Release workflow for AppImage, deb, rpm, extension zip, and checksums
 
 ## Known limitations
 
@@ -189,4 +186,6 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 
 ---
 
-Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md)
+Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Roadmap](docs/roadmap.md)
+
+Project: [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)

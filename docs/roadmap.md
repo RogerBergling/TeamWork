@@ -1,6 +1,6 @@
 # Roadmap and known gaps
 
-This document tracks the work that is desirable but not yet complete. It is grouped by user impact, not by implementation convenience.
+This document tracks the work that is desirable but not yet complete. It is grouped by user impact, not by implementation convenience. For the enterprise control assessment, see [Enterprise readiness](enterprise-readiness.md).
 
 ## P0 — production readiness
 

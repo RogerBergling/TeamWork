@@ -13,6 +13,10 @@ const paths = resolveAppPaths()
 app.setName('TeamWork')
 app.setDesktopName('teamwork.desktop')
 
+// Defense in depth: every renderer is sandboxed, including future windows.
+// Individual webPreferences still set sandbox explicitly.
+app.enableSandbox()
+
 mkdirSync(paths.configDir, { recursive: true, mode: 0o700 })
 mkdirSync(paths.logDir, { recursive: true, mode: 0o700 })
 app.setPath('userData', paths.configDir)

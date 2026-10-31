@@ -136,8 +136,9 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 
 ## Security model
 
-- Shell renderer: `contextIsolation: true`, `sandbox: true`, no Node integration, strict preload bridge.
+- Shell renderer: `contextIsolation: true`, app-wide Chromium sandbox, no Node integration, strict preload bridge.
 - Element and Jitsi: separate persistent partitions, no preload, no Node integration, sandboxed.
+- Packaged Electron runtime disables `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`, and inspector flags, loads only from the ASAR, and enables cookie encryption.
 - Permission requests (camera, microphone, screen capture, notifications) are granted automatically only for the configured application origin; other origins require an explicit dialog.
 - External links open in the system browser when trusted authentication origins are configured.
 - Custom CSS is user-controlled local configuration, not remote input.
@@ -186,6 +187,6 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 
 ---
 
-Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Roadmap](docs/roadmap.md)
+Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
 
 Project: [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)

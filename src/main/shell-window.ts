@@ -49,6 +49,7 @@ export function createShellWindow(options: ShellWindowOptions): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       nodeIntegrationInSubFrames: false,
+      webviewTag: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: settings.advanced.spellcheck,

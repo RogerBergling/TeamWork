@@ -21,4 +21,8 @@ All notable changes to this project are documented here.
 - AppImage, deb, and rpm packaging with desktop integration and runtime dependencies.
 - Automated tests for settings, URL policy, Jitsi/Matrix deep links, extension matching, configuration storage, and window state.
 - GitHub Actions build workflow, artifact checksums, release artifacts, and browser-extension validation.
+- Tag-based GitHub Release workflow, extension manifest validation, Dependabot, and editor/Node version pins.
+- App-wide Chromium sandbox and Electron fuses for runtime hardening.
+- Renderer error forwarding to the main log and packaged LICENSE/third-party notices.
+- Enterprise readiness assessment and prioritized roadmap.
 - Architecture, configuration, authentication, deep-link, browser-extension, packaging, and security documentation.

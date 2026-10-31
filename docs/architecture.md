@@ -130,6 +130,7 @@ On Wayland, Chromium/Electron routes capture through `xdg-desktop-portal` and Pi
 | Config | Schema validation, atomic writes, 0600 permissions |
 | Custom CSS | Local user input only, injected as CSS, never evaluated as script |
 | Certificates | Rejected by default; explicit opt-in with warning logs |
+| Electron fuses | `runAsNode`, `NODE_OPTIONS`, and inspector flags disabled; only ASAR loading; cookie encryption enabled |
 
 ## Packaging
 
@@ -151,4 +152,4 @@ One build produces:
 - Automated end-to-end tests with Playwright driving the shell.
 - ARM64 packaging.
 
-See [Roadmap and known gaps](roadmap.md) for the prioritized backlog.
+See [Enterprise readiness](enterprise-readiness.md) for management, signing, identity, and compliance gaps, and [Roadmap and known gaps](roadmap.md) for the prioritized backlog.

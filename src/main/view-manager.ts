@@ -249,6 +249,7 @@ export class ViewManager {
         contextIsolation: true,
         nodeIntegration: false,
         nodeIntegrationInSubFrames: false,
+        webviewTag: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
         spellcheck: this.settings.advanced.spellcheck,

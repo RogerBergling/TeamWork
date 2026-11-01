@@ -6,6 +6,24 @@ TeamWork is a native Electron shell around the official web clients. It does not
 
 ![TeamWork settings](docs/assets/teamwork-settings.png)
 
+## Current build
+
+| Version | Build number | Build date | Build time | Hour |
+|---|---|---|---|---|
+| `0.1.0` | `202611011022` | `2026-11-01` | `10:22 UTC` | `10` |
+
+The version and build metadata are generated at build time and shown in the application status bar and **Settings → Application**. CI uses the workflow run number as the build number; local builds derive it from the UTC timestamp.
+
+Override build metadata when needed:
+
+```bash
+BUILD_NUMBER=202611011022 \
+BUILD_TIMESTAMP=2026-11-01T10:22:00Z \
+npm run dist
+```
+
+`SOURCE_DATE_EPOCH` is also supported for reproducible timestamps.
+
 ## Why this design
 
 Element and Jitsi are large, fast-moving web applications built on Matrix and WebRTC. Reimplementing them natively would be a multi-year project and would permanently lag upstream. TeamWork therefore hosts each official client in an isolated `WebContentsView`:
@@ -164,8 +182,8 @@ scripts/           Icon and extension packaging scripts
 
 The repository is validated with:
 
-- `npm run verify` — type checks, 61 unit tests, production builds, extension packaging, and manifest validation
-- `npm test` — 61 tests across settings, URL policy, deep links, extension matching, config store, window state, paths, and startup timing
+- `npm run verify` — type checks, 63 unit tests, production builds, extension packaging, and manifest validation
+- `npm test` — 63 tests across settings, URL policy, deep links, extension matching, config store, window state, paths, startup timing, and build metadata
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test

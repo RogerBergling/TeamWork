@@ -30,10 +30,10 @@
     "verify": "npm run typecheck && npm test && npm run build && npm run extension:build && npm run extension:zip && npm run extension:validate",
     "icon": "node scripts/generate-icon.mjs",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run verify && electron-builder --linux AppImage deb rpm",
-    "dist:appimage": "npm run verify && electron-builder --linux AppImage",
-    "dist:deb": "npm run verify && electron-builder --linux deb",
-    "dist:rpm": "npm run verify && electron-builder --linux rpm"
+    "dist": "npm run verify && electron-builder --linux AppImage deb rpm --publish never",
+    "dist:appimage": "npm run verify && electron-builder --linux AppImage --publish never",
+    "dist:deb": "npm run verify && electron-builder --linux deb --publish never",
+    "dist:rpm": "npm run verify && electron-builder --linux rpm --publish never"
   },
   "dependencies": {
     "electron-log": "5.4.4",

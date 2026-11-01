@@ -19,8 +19,10 @@ import { ViewManager } from './view-manager'
 import { TrayController } from './tray'
 import { createShellWindow } from './shell-window'
 import { startupTimer } from './startup-timing'
+import { BUILD_NUMBER, BUILD_TIMESTAMP } from './build-info'
 import { chooseLogo, readLogoDataUrl, trayIconFor, windowIconFor } from './logo'
 import type { Settings } from '../shared/settings'
+import { formatBuildParts } from '../shared/build-info'
 import {
   findDeepLinkInArgv,
   resolveJitsiMeetingInput,
@@ -65,7 +67,9 @@ export class AppController {
 
   start(): void {
     startupTimer.mark('controller-start')
-    this.logger.info(`Starting ${app.getName()} ${app.getVersion()}`)
+    this.logger.info(
+      `Starting ${app.getName()} ${app.getVersion()} (build ${BUILD_NUMBER}, ${BUILD_TIMESTAMP})`
+    )
     this.logger.info(`Configuration: ${this.paths.configFile}`)
     this.logger.info(`Log file: ${this.paths.logFile}`)
     this.logger.info(
@@ -185,10 +189,16 @@ export class AppController {
 
   meta(): SettingsMeta {
     const sessionType = process.env.XDG_SESSION_TYPE?.toLowerCase() ?? 'unknown'
+    const build = formatBuildParts(BUILD_TIMESTAMP)
     return {
       configPath: this.paths.configFile,
       logPath: this.paths.logFile,
       appVersion: app.getVersion(),
+      buildNumber: BUILD_NUMBER,
+      buildTimestamp: BUILD_TIMESTAMP,
+      buildDate: build.date,
+      buildTime: build.time,
+      buildHour: build.hour,
       electronVersion: process.versions.electron ?? '',
       chromeVersion: process.versions.chrome ?? '',
       nodeVersion: process.versions.node ?? '',
@@ -640,6 +650,7 @@ export class AppController {
       detail: [
         `Element + Jitsi desktop client`,
         '',
+        `Build ${meta.buildNumber} · ${meta.buildDate} ${meta.buildTime} (hour ${meta.buildHour})`,
         `Electron ${meta.electronVersion}`,
         `Chromium ${meta.chromeVersion}`,
         `Node ${meta.nodeVersion}`,

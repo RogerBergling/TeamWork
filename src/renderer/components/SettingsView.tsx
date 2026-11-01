@@ -262,6 +262,9 @@ export function SettingsView({
 
       <div className="settings-card about-grid">
         <InfoRow label="Application" value={`${settings.appearance.appName} ${meta.appVersion}`} />
+        <InfoRow label="Build number" value={meta.buildNumber} />
+        <InfoRow label="Build date" value={meta.buildDate} />
+        <InfoRow label="Build time" value={`${meta.buildTime} (hour ${meta.buildHour})`} />
         <InfoRow label="Electron" value={meta.electronVersion} />
         <InfoRow label="Chromium" value={meta.chromeVersion} />
         <InfoRow label="Node" value={meta.nodeVersion} />

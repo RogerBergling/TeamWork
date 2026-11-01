@@ -458,6 +458,10 @@ button:disabled {
 
 .statusbar-version {
   color: var(--muted);
+  max-width: min(430px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Content states ---------- */

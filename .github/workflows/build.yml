@@ -13,6 +13,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
 
     steps:
       - name: Check out repository

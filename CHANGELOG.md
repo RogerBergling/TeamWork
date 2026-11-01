@@ -26,5 +26,6 @@ All notable changes to this project are documented here.
 - Renderer error forwarding to the main log and packaged LICENSE/third-party notices.
 - Lazy loading of inactive embedded views, startup timing diagnostics, renderer code splitting, and removal of Zod from the renderer bundle.
 - Performance guidance for managed fleets and Element/Jitsi server tuning.
+- Build metadata (version, build number, build date/time/hour) shown in the status bar, About dialog, and Settings → Application; CI run number and reproducible timestamp overrides.
 - Enterprise readiness assessment and prioritized roadmap.
 - Architecture, configuration, authentication, deep-link, browser-extension, packaging, and security documentation.

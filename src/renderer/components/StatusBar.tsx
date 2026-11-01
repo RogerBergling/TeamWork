@@ -1,4 +1,5 @@
 import type { SettingsSnapshot, ShellView, ViewStatus } from '@shared/types'
+import { buildLabel } from '@shared/build-info'
 import { hostOf } from '@shared/urls'
 import { Icon } from '../lib/icons'
 
@@ -65,8 +66,11 @@ export function StatusBar({
             Wayland
           </span>
         ) : null}
-        <span className="statusbar-version" title={meta.configPath}>
-          v{meta.appVersion}
+        <span
+          className="statusbar-version"
+          title={`Build ${meta.buildNumber}\nBuilt ${meta.buildDate} ${meta.buildTime} (hour ${meta.buildHour})\nConfig: ${meta.configPath}`}
+        >
+          {buildLabel(meta.appVersion, meta.buildNumber)} · {meta.buildDate} {meta.buildTime}
         </span>
       </div>
     </footer>

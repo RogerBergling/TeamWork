@@ -59,6 +59,22 @@ The icon is generated from `src/renderer/assets/logo.svg`:
 npm run icon   # writes build/icon.png and build/icon.svg
 ```
 
+## Build metadata
+
+Each build embeds a version, build number, and build timestamp. These are displayed in the application status bar and **Settings → Application**.
+
+- CI sets `BUILD_NUMBER` to the GitHub Actions run number.
+- Local builds derive the build number from the UTC timestamp.
+- Override explicitly when producing a reproducible release:
+
+```bash
+BUILD_NUMBER=202611011022 \
+BUILD_TIMESTAMP=2026-11-01T10:22:00Z \
+npm run dist
+```
+
+`SOURCE_DATE_EPOCH` is supported as a fallback timestamp source. The build number and timestamp are compile-time constants in the main process; changing them requires rebuilding the application.
+
 The generated PNG is committed so packaging does not depend on Sharp at build time.
 
 ## Output layout
@@ -149,7 +165,7 @@ The release workflow is the preferred distribution path. The large binaries comm
 The following was validated locally:
 
 - `npm run typecheck`
-- `npm test` — 61 tests
+- `npm test` — 63 tests
 - `npm run verify` — type checks, tests, builds, extension packaging and manifest validation
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server

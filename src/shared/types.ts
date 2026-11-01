@@ -44,6 +44,11 @@ export interface SettingsMeta {
   configPath: string
   logPath: string
   appVersion: string
+  buildNumber: string
+  buildTimestamp: string
+  buildDate: string
+  buildTime: string
+  buildHour: string
   electronVersion: string
   chromeVersion: string
   nodeVersion: string

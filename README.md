@@ -4,7 +4,12 @@ A Teams-inspired Linux desktop client that brings **Element (Matrix)** and **Jit
 
 TeamWork is a native Electron shell around the official web clients. It does not reimplement chat or conferencing. Element and Jitsi keep their own features, SAML/OpenID sign-in flows, and upstream behaviour, while TeamWork adds a consistent desktop frame, branding, configuration, logging, and Linux integration.
 
-![TeamWork settings](docs/assets/teamwork-settings.png)
+<p align="center">
+  <img src="docs/assets/teamwork-settings.png" width="49%" alt="TeamWork settings and build metadata" />
+  <img src="docs/assets/teamwork-join-meeting.png" width="49%" alt="Join a Jitsi meeting in TeamWork" />
+</p>
+
+*Left: settings, configuration and build metadata. Right: joining a Jitsi meeting from an Outlook/email URL.*
 
 ## Current build
 

@@ -8,7 +8,7 @@ import {
   type Settings,
   type SettingsFieldError,
   type SettingsSectionId
-} from '@shared/settings'
+} from '@shared/settings-fields'
 import type { ImportExportResult, ManagedView, SaveResult, SettingsSnapshot } from '@shared/types'
 import { Icon } from '../lib/icons'
 import { SettingControl } from './SettingControl'

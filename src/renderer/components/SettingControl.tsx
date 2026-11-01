@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { SettingField } from '@shared/settings'
+import type { SettingField } from '@shared/settings-fields'
 import { Icon } from '../lib/icons'
 
 interface SettingControlProps {

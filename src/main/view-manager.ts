@@ -25,6 +25,7 @@ interface ManagedEntry {
   status: ViewStatus
   configuredUrl: string
   targetUrl: string
+  loaded: boolean
   hideUntilReady: boolean
   lastLoadFailed: boolean
   cssKey?: string
@@ -117,6 +118,7 @@ export class ViewManager {
 
   activate(view: ManagedView | null): void {
     this.active = view
+    if (view) this.ensureLoaded(view)
     this.updateVisibility()
   }
 
@@ -138,14 +140,19 @@ export class ViewManager {
       const urlChanged = previousUrl !== nextUrl
 
       if (urlChanged) {
-        this.load(kind)
+        if (entry.loaded || this.active === kind) {
+          this.load(kind)
+        } else {
+          // Keep inactive, never-opened views cold until the user selects them.
+          entry.loaded = false
+        }
       }
 
-      if (previous.appearance.customCss !== settings.appearance.customCss) {
+      if (entry.loaded && previous.appearance.customCss !== settings.appearance.customCss) {
         this.applyCustomCss(entry)
       }
 
-      if (previous.advanced.zoomFactor !== settings.advanced.zoomFactor) {
+      if (entry.loaded && previous.advanced.zoomFactor !== settings.advanced.zoomFactor) {
         this.setZoom(entry)
       }
 
@@ -156,11 +163,13 @@ export class ViewManager {
       const nextUserAgent =
         kind === 'element' ? settings.servers.elementUserAgent : settings.servers.jitsiUserAgent
       if (
+        entry.loaded &&
         !urlChanged &&
         previousUserAgent !== nextUserAgent &&
         entry.status.state !== 'unconfigured'
       ) {
-        entry.view.webContents.reload()
+        if (this.active === kind) entry.view.webContents.reload()
+        else entry.loaded = false
       }
     }
 
@@ -170,6 +179,11 @@ export class ViewManager {
   reload(view: ManagedView): void {
     const entry = this.entries.get(view)
     if (!entry) return
+
+    if (!entry.loaded) {
+      this.load(view)
+      return
+    }
 
     if (entry.status.state === 'error' || entry.status.state === 'unconfigured') {
       this.load(view, entry.targetUrl || undefined)
@@ -183,7 +197,10 @@ export class ViewManager {
   openInBrowser(view: ManagedView): void {
     const entry = this.entries.get(view)
     if (!entry) return
-    const target = entry.status.url || entry.targetUrl || entry.configuredUrl
+    const configured = (
+      view === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
+    ).trim()
+    const target = entry.status.url || entry.targetUrl || entry.configuredUrl || configured
     if (target && parseHttpUrl(target)) {
       void shell.openExternal(target)
     }
@@ -207,7 +224,14 @@ export class ViewManager {
 
   async clearSession(view: ManagedView): Promise<void> {
     await this.sessions.clear(view)
-    this.load(view)
+    const entry = this.entries.get(view)
+    if (!entry) return
+    if (this.active === view) {
+      this.load(view)
+    } else {
+      // Keep an inactive view cold; it will reload the next time it is opened.
+      entry.loaded = false
+    }
   }
 
   async clearSessions(): Promise<void> {
@@ -275,6 +299,7 @@ export class ViewManager {
       },
       configuredUrl: '',
       targetUrl: '',
+      loaded: false,
       hideUntilReady: true,
       lastLoadFailed: false
     }
@@ -372,8 +397,6 @@ export class ViewManager {
         `[${VIEW_LABEL[kind]} console:${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`
       )
     })
-
-    this.load(kind)
   }
 
   private attachGuards(kind: ManagedView, contents: WebContents): void {
@@ -487,9 +510,21 @@ export class ViewManager {
     })
   }
 
+  private ensureLoaded(kind: ManagedView): void {
+    const entry = this.entries.get(kind)
+    if (!entry) return
+    const configured = (
+      kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
+    ).trim()
+    if (!entry.loaded || (entry.status.state === 'unconfigured' && configured !== '')) {
+      this.load(kind)
+    }
+  }
+
   private load(kind: ManagedView, requestedUrl?: string): void {
     const entry = this.entries.get(kind)
     if (!entry) return
+    entry.loaded = true
 
     const configured = (
       kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
@@ -540,6 +575,7 @@ export class ViewManager {
       this.updateVisibility()
     }
 
+    this.setZoom(entry)
     entry.view.webContents.loadURL(validated.toString()).catch((error: unknown) => {
       // did-fail-load reports the user-facing error. Keep this at debug level to
       // avoid duplicate error lines for the same navigation.

@@ -27,6 +27,8 @@ This is also why the application can support the complete Jitsi and Element feat
 
 - **One Teams-like application** with a dark navigation rail, contextual header, status bar, and light/dark themes.
 - **Element and Jitsi side by side**, each with a persistent, isolated browser session.
+- **Lazy-loaded content**; Jitsi is not loaded until the user opens Meet or joins a meeting.
+- **Startup timing diagnostics** in the main log and a tuned renderer bundle without Zod.
 - **Join Jitsi meetings from a URL** using the Join meeting dialog (`Ctrl+J`) or a `teamwork://join?...` deep link from Outlook, email, or chat.
 - **Chrome/Edge Link Opener extension** that converts ordinary Jitsi and Matrix/Element HTTPS links into TeamWork deep links, with trusted-domain and public-service detection.
 - **Web-based authentication preserved**, including SAML and OpenID redirect flows and login popups.
@@ -84,7 +86,7 @@ npm run dist:deb
 npm run dist:rpm      # requires rpmbuild on the build machine
 ```
 
-The AppImage is a single self-contained executable file. The `.deb` and `.rpm` are normal installers for managed fleets. All three are build outputs of the same application; see [Packaging](docs/packaging.md).
+The AppImage is a single self-contained executable file. The `.deb` and `.rpm` are normal installers for managed fleets. For managed fleets, prefer the installed deb/rpm over the AppImage for faster repeat launches and package-manager updates. See [Performance](docs/performance.md) and [Packaging](docs/packaging.md).
 
 ## Configuration
 
@@ -162,8 +164,8 @@ scripts/           Icon and extension packaging scripts
 
 The repository is validated with:
 
-- `npm run verify` — type checks, 59 unit tests, production builds, extension packaging, and manifest validation
-- `npm test` — 59 tests across settings, URL policy, deep links, extension link matching, config store, window state, and paths
+- `npm run verify` — type checks, 61 unit tests, production builds, extension packaging, and manifest validation
+- `npm test` — 61 tests across settings, URL policy, deep links, extension matching, config store, window state, paths, and startup timing
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test
@@ -187,6 +189,6 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 
 ---
 
-Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
+Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Performance](docs/performance.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
 
 Project: [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)

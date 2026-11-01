@@ -18,6 +18,7 @@ import { SessionManager } from './session-manager'
 import { ViewManager } from './view-manager'
 import { TrayController } from './tray'
 import { createShellWindow } from './shell-window'
+import { startupTimer } from './startup-timing'
 import { chooseLogo, readLogoDataUrl, trayIconFor, windowIconFor } from './logo'
 import type { Settings } from '../shared/settings'
 import {
@@ -63,6 +64,7 @@ export class AppController {
   }
 
   start(): void {
+    startupTimer.mark('controller-start')
     this.logger.info(`Starting ${app.getName()} ${app.getVersion()}`)
     this.logger.info(`Configuration: ${this.paths.configFile}`)
     this.logger.info(`Log file: ${this.paths.logFile}`)
@@ -88,6 +90,7 @@ export class AppController {
       onClose: (event) => this.onWindowClose(event),
       onBoundsChanged: () => this.scheduleWindowStateSave()
     })
+    startupTimer.mark('window-created')
 
     this.window.on('maximize', () => this.sendWindowState())
     this.window.on('unmaximize', () => this.sendWindowState())
@@ -103,6 +106,7 @@ export class AppController {
       }
     })
     this.window.webContents.on('did-finish-load', () => {
+      startupTimer.mark('shell-loaded')
       this.shellReady = true
       this.sendWindowState()
       for (const status of this.views?.getStatuses() ?? []) {
@@ -119,10 +123,18 @@ export class AppController {
       this.settings,
       this.sessions,
       this.logger,
-      (status) => this.send('view:status', status),
+      (status) => {
+        if (status.state === 'ready' && startupTimer.mark(`${status.view}-ready`)) {
+          this.logger.info(
+            `Startup: ${status.view} ready at ${startupTimer.get(`${status.view}-ready`)} ms`
+          )
+        }
+        this.send('view:status', status)
+      },
       (request) => this.send('screenshare:request', request),
       (id) => this.send('screenshare:cancelled', id)
     )
+    startupTimer.mark('views-prepared')
 
     this.tray = new TrayController(
       this.settings,
@@ -138,6 +150,7 @@ export class AppController {
       (message, error) => this.logger.error(message, error)
     )
     this.tray.apply(this.settings, this.trayIcon())
+    startupTimer.mark('tray-ready')
 
     if (this.settings.window.startMinimized && !this.tray.visible) {
       this.logger.warn('Start-minimized was requested but the tray is unavailable; showing the window')
@@ -145,6 +158,7 @@ export class AppController {
     }
 
     this.installMenu()
+    startupTimer.mark('menu-ready')
 
     app.on('before-quit', (event) => this.beforeQuit(event))
     app.on('activate', () => this.showWindow())
@@ -297,6 +311,9 @@ export class AppController {
 
   markRendererReady(): void {
     this.rendererReady = true
+    if (startupTimer.mark('renderer-ready')) {
+      this.logger.info(`Startup timing: ${JSON.stringify(startupTimer.snapshot())}`)
+    }
     this.flushPendingDeepLink()
   }
 

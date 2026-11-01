@@ -15,6 +15,7 @@ Both.
 
 - An **AppImage** is a single file. The user downloads it, marks it executable, and runs it. Internally it contains the Electron/Chromium runtime and the application, so it behaves like one executable without a system-wide installation.
 - A **.deb** or **.rpm** is the right choice when an organisation manages software installation, desktop entries, and updates through package management.
+- For managed fleets, prefer the installed **deb/rpm** over AppImage: it avoids FUSE mount/extract overhead on each launch, integrates with the package manager, and is compatible with unattended updates. See [Performance](performance.md).
 - A truly static single binary is not realistic for a Chromium-based client. Tauri could produce a smaller single binary, but it relies on the system WebKitGTK and puts Jitsi/Element WebRTC and feature parity at risk. Electron was chosen deliberately.
 
 All three formats are built from the same `out/` bundle and the same version number.
@@ -148,7 +149,7 @@ The release workflow is the preferred distribution path. The large binaries comm
 The following was validated locally:
 
 - `npm run typecheck`
-- `npm test` — 59 tests
+- `npm test` — 61 tests
 - `npm run verify` — type checks, tests, builds, extension packaging and manifest validation
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server

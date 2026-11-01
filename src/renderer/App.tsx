@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import type {
   ManagedView,
   ScreenShareRequest,
@@ -7,21 +15,34 @@ import type {
   ViewStatus,
   WindowState
 } from '@shared/types'
-import type { Settings } from '@shared/settings'
+import type { Settings } from '@shared/settings-fields'
 import defaultLogo from './assets/logo.svg'
 import { TitleBar } from './components/TitleBar'
 import { Rail } from './components/Rail'
 import { ContextBar } from './components/ContextBar'
 import { StatusBar } from './components/StatusBar'
 import { ContentState } from './components/ContentState'
-import { SettingsView } from './components/SettingsView'
-import { LogsView } from './components/LogsView'
-import { ScreenShareModal } from './components/ScreenShareModal'
-import { JoinMeetingModal } from './components/JoinMeetingModal'
 import { Toast, type ToastKind, type ToastMessage } from './components/Toast'
 import { Icon } from './lib/icons'
 import { bridge } from './lib/bridge'
 import { applyAppearance, systemThemeQuery } from './lib/theme'
+
+const SettingsView = lazy(() =>
+  import('./components/SettingsView').then((module) => ({ default: module.SettingsView }))
+)
+const LogsView = lazy(() =>
+  import('./components/LogsView').then((module) => ({ default: module.LogsView }))
+)
+const ScreenShareModal = lazy(() =>
+  import('./components/ScreenShareModal').then((module) => ({
+    default: module.ScreenShareModal
+  }))
+)
+const JoinMeetingModal = lazy(() =>
+  import('./components/JoinMeetingModal').then((module) => ({
+    default: module.JoinMeetingModal
+  }))
+)
 
 const EMPTY_STATUS: Record<ManagedView, ViewStatus> = {
   element: { view: 'element', state: 'unconfigured' },
@@ -57,6 +78,8 @@ export default function App(): React.JSX.Element {
   const [logoData, setLogoData] = useState<string | null>(null)
   const [screenRequest, setScreenRequest] = useState<ScreenShareRequest | null>(null)
   const [joinMeetingOpen, setJoinMeetingOpen] = useState(false)
+  const [settingsMounted, setSettingsMounted] = useState(false)
+  const [logsMounted, setLogsMounted] = useState(false)
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const toastTimer = useRef<number | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -86,6 +109,7 @@ export default function App(): React.JSX.Element {
         if (cancelled) return
         setSnapshot(result)
         const initial = chooseInitialView(result)
+        if (initial === 'settings') setSettingsMounted(true)
         setActive(initial)
         window.teamwork.activateView(initial)
         const [state, initialStatuses] = await Promise.all([
@@ -172,6 +196,8 @@ export default function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    if (active === 'settings') setSettingsMounted(true)
+    if (active === 'logs') setLogsMounted(true)
     window.teamwork?.activateView(active)
   }, [active])
 
@@ -368,27 +394,43 @@ export default function App(): React.JSX.Element {
           />
 
           <main className="content" ref={contentRef}>
-            <div className={`pane${active === 'settings' ? ' is-visible' : ''}`}>
-              <SettingsView
-                snapshot={snapshot}
-                fallbackLogo={defaultLogo}
-                onSave={handleSave}
-                onReset={handleReset}
-                onExport={() => window.teamwork.exportSettings()}
-                onImport={handleImport}
-                onChooseLogo={handleChooseLogo}
-                onLogoData={handleLogoData}
-                onOpenConfig={() => void window.teamwork.openConfigFile()}
-                onOpenLogs={() => setActive('logs')}
-                onRestart={() => void window.teamwork.restartApp()}
-                onClearSession={handleClearSession}
-                onNotify={showToast}
-              />
-            </div>
+            {settingsMounted ? (
+              <div className={`pane${active === 'settings' ? ' is-visible' : ''}`}>
+                <Suspense fallback={<PaneLoading label="Loading settings…" />}>
+                  <SettingsView
+                    snapshot={snapshot}
+                    fallbackLogo={defaultLogo}
+                    onSave={handleSave}
+                    onReset={handleReset}
+                    onExport={() => window.teamwork.exportSettings()}
+                    onImport={handleImport}
+                    onChooseLogo={handleChooseLogo}
+                    onLogoData={handleLogoData}
+                    onOpenConfig={() => void window.teamwork.openConfigFile()}
+                    onOpenLogs={() => setActive('logs')}
+                    onRestart={() => void window.teamwork.restartApp()}
+                    onClearSession={handleClearSession}
+                    onNotify={showToast}
+                  />
+                </Suspense>
+              </div>
+            ) : active === 'settings' ? (
+              <div className="pane is-visible">
+                <PaneLoading label="Loading settings…" />
+              </div>
+            ) : null}
 
-            <div className={`pane${active === 'logs' ? ' is-visible' : ''}`}>
-              <LogsView active={active === 'logs'} snapshot={snapshot} />
-            </div>
+            {logsMounted ? (
+              <div className={`pane${active === 'logs' ? ' is-visible' : ''}`}>
+                <Suspense fallback={<PaneLoading label="Loading logs…" />}>
+                  <LogsView active={active === 'logs'} snapshot={snapshot} />
+                </Suspense>
+              </div>
+            ) : active === 'logs' ? (
+              <div className="pane is-visible">
+                <PaneLoading label="Loading logs…" />
+              </div>
+            ) : null}
 
             {managedActive ? (
               <ContentState
@@ -412,27 +454,40 @@ export default function App(): React.JSX.Element {
 
       {settings.appearance.customCss ? <style>{settings.appearance.customCss}</style> : null}
 
-      {screenRequest ? (
-        <ScreenShareModal
-          request={screenRequest}
-          onSelect={selectScreenSource}
-          onCancel={cancelScreenShare}
-        />
-      ) : null}
+      <Suspense fallback={null}>
+        {screenRequest ? (
+          <ScreenShareModal
+            request={screenRequest}
+            onSelect={selectScreenSource}
+            onCancel={cancelScreenShare}
+          />
+        ) : null}
+      </Suspense>
 
-      {joinMeetingOpen ? (
-        <JoinMeetingModal
-          configuredUrl={settings.servers.jitsiUrl}
-          onJoin={handleJoinJitsi}
-          onClose={() => setJoinMeetingOpen(false)}
-          onOpenSettings={() => {
-            setJoinMeetingOpen(false)
-            setActive('settings')
-          }}
-        />
-      ) : null}
+      <Suspense fallback={null}>
+        {joinMeetingOpen ? (
+          <JoinMeetingModal
+            configuredUrl={settings.servers.jitsiUrl}
+            onJoin={handleJoinJitsi}
+            onClose={() => setJoinMeetingOpen(false)}
+            onOpenSettings={() => {
+              setJoinMeetingOpen(false)
+              setActive('settings')
+            }}
+          />
+        ) : null}
+      </Suspense>
 
       {toast ? <Toast toast={toast} onDismiss={() => setToast(null)} /> : null}
+    </div>
+  )
+}
+
+function PaneLoading({ label }: { label: string }): React.JSX.Element {
+  return (
+    <div className="content-state">
+      <div className="spinner" />
+      <p>{label}</p>
     </div>
   )
 }

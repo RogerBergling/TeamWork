@@ -35,6 +35,8 @@ React measures the content rectangle in CSS pixels and sends it to the main proc
 
 When a view is loading, unconfigured, or failed, it is hidden and the shell renders a branded state. When it is ready, the native view is shown above the shell content. Settings and Logs deactivate both native views.
 
+Views are loaded lazily. The renderer first selects the startup view, and only that view begins loading. Jitsi is loaded when the user opens Meet, uses a deep link, or joins a meeting. Changing an inactive view's URL does not load it in the background. Startup timing is emitted to the main log; see [Performance](performance.md).
+
 ## Configuration
 
 `ConfigStore` is deliberately independent of Electron so it can be unit tested:

@@ -7,8 +7,10 @@ import { WindowStateStore } from './window-state'
 import { AppController } from './app-controller'
 import { registerIpc } from './ipc'
 import { registerTeamWorkProtocol } from './protocol-registration'
+import { startupTimer } from './startup-timing'
 import { findDeepLinkInArgv } from '../shared/deep-links'
 
+startupTimer.mark('main-module-loaded')
 const paths = resolveAppPaths()
 app.setName('TeamWork')
 app.setDesktopName('teamwork.desktop')
@@ -27,6 +29,7 @@ const configStore = new ConfigStore(paths.configFile, (message, error) =>
   logger.warn(message, error)
 )
 const loaded = configStore.load()
+startupTimer.mark('config-loaded')
 logger.configure(loaded.settings.logging)
 logger.info('TeamWork bootstrapping')
 
@@ -102,6 +105,7 @@ if (!gotLock) {
   app
     .whenReady()
     .then(() => {
+      startupTimer.mark('app-ready')
       const windowState = new WindowStateStore(paths.windowStateFile, (message, error) =>
         logger.warn(message, error)
       )

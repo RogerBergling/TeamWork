@@ -22,7 +22,7 @@ TeamWork has a solid technical foundation, but several controls expected in a ma
 | Accessibility | Gap | Basic labels/roles exist; no WCAG/EN 301 549 audit, focus traps, zoom controls, or screen-reader validation. |
 | Compliance / legal | Partial | Apache-2.0 shell, Element AGPL notice, trademark notice. No privacy policy, DPA guidance, SBOM, or export-control review. |
 | Platform coverage | Gap | Linux x86_64 only. No ARM64, Flatpak, Windows, or macOS. |
-| Quality engineering | Partial | 59 unit tests, TypeScript checks, build and smoke tests. No lint, coverage gate, E2E suite, or real Wayland/SSO test. |
+| Quality engineering | Partial | 61 unit tests, TypeScript checks, build and smoke tests. No lint, coverage gate, E2E suite, or real Wayland/SSO test. |
 | Supply chain | Gap | No CodeQL, dependency review, SBOM, artifact attestations, or pinned GitHub Action SHAs. |
 
 ## What is already in good shape

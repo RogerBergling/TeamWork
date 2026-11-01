@@ -24,5 +24,7 @@ All notable changes to this project are documented here.
 - Tag-based GitHub Release workflow, extension manifest validation, Dependabot, and editor/Node version pins.
 - App-wide Chromium sandbox and Electron fuses for runtime hardening.
 - Renderer error forwarding to the main log and packaged LICENSE/third-party notices.
+- Lazy loading of inactive embedded views, startup timing diagnostics, renderer code splitting, and removal of Zod from the renderer bundle.
+- Performance guidance for managed fleets and Element/Jitsi server tuning.
 - Enterprise readiness assessment and prioritized roadmap.
 - Architecture, configuration, authentication, deep-link, browser-extension, packaging, and security documentation.

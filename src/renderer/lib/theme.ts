@@ -1,4 +1,4 @@
-import type { Settings } from '@shared/settings'
+import type { Settings } from '@shared/settings-fields'
 
 export function applyAppearance(settings: Settings): void {
   const root = document.documentElement

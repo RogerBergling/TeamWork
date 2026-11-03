@@ -1,8 +1,12 @@
 # TeamWork
 
-A Teams-inspired Linux desktop client that brings **Element (Matrix)** and **Jitsi Meet** together in one window.
+TeamWork is a Linux desktop client that puts **Element (Matrix)** chat and **Jitsi Meet** calling into one Teams-like window.
 
-TeamWork is a native Electron shell around the official web clients. It does not reimplement chat or conferencing. Element and Jitsi keep their own features, SAML/OpenID sign-in flows, and upstream behaviour, while TeamWork adds a consistent desktop frame, branding, configuration, logging, and Linux integration.
+**Latest build:** `0.1.0` · build `202611011022` · `2026-11-01 10:22 UTC`
+
+**Users:** [Get started](#the-easy-way-to-get-running)<br />
+**Administrators:** [Enterprise readiness](docs/enterprise-readiness.md) · [Packaging](docs/packaging.md)<br />
+**Developers:** [Build from source](#developer-quick-start) · [Architecture](docs/architecture.md)
 
 <p align="center">
   <img src="docs/assets/teamwork-settings.png" width="49%" alt="TeamWork settings and build metadata" />
@@ -11,13 +15,121 @@ TeamWork is a native Electron shell around the official web clients. It does not
 
 *Left: settings, configuration and build metadata. Right: joining a Jitsi meeting from an Outlook/email URL.*
 
+---
+
+## The easy way to get running
+
+You need three things before you start:
+
+1. A Linux desktop (x86_64).
+2. The **Element URL** and **Jitsi Meet URL** from your IT team.
+3. Your normal work account for those services.
+
+**TeamWork is only the desktop client.** It does not install or host Element, Matrix, Jitsi, or your identity provider. If you do not have those services yet, ask your IT team for the URLs or see [Element](https://element.io/) and [Jitsi](https://jitsi.org/).
+
+### 1. Download and install
+
+Download the package from [GitHub Releases](https://github.com/RogerBergling/TeamWork/releases). If no release has been published yet, use the files in the [`release/` folder](https://github.com/RogerBergling/TeamWork/tree/main/release).
+
+| Package | Use this if | Install |
+|---|---|---|
+| **AppImage** | You want to try it without installing | `chmod +x TeamWork-*.AppImage` then run it |
+| **.deb** | You use Ubuntu/Debian | `sudo apt install ./TeamWork-*.deb` |
+| **.rpm** | You use Fedora/RHEL/SUSE | `sudo dnf install ./TeamWork-*.rpm` |
+
+For a managed company laptop, prefer the **deb** or **rpm**. For a quick test, use the AppImage. If FUSE is unavailable, run the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`.
+
+### 2. Open TeamWork
+
+Start TeamWork from your application menu or run the file you downloaded.
+
+On first launch it opens **Settings**. If it does not, select **Settings** in the left navigation rail.
+
+### 3. Point it at your servers
+
+Open **Settings → Connection** and enter:
+
+- **Element URL** — for example `https://element.example.com`
+- **Jitsi Meet URL** — for example `https://meet.example.com`
+
+Click **Save changes**.
+
+### 4. Sign in normally
+
+Open **Chat** or **Meet** and sign in through the normal web page. TeamWork does not ask for your password and does not store your credentials.
+
+If your organization uses SAML/OpenID, the usual login, MFA and consent pages appear inside TeamWork.
+
+### 5. Start using it
+
+- **Chat** opens Element for rooms, spaces, direct messages and files.
+- **Meet** opens Jitsi for video meetings.
+- **Join meeting** (`Ctrl+J`) lets you paste a Jitsi link from Outlook, email or chat.
+- **Settings** controls servers, branding, theme, proxy, logging and authentication.
+- **Logs** shows errors and warnings; enable **Debug mode** if support asks for more detail.
+
+### Optional: make normal Outlook links open in TeamWork
+
+A normal `https://meet.example.com/...` link opens the browser. To make those links open TeamWork automatically, install the optional Chrome/Edge extension:
+
+- [Browser extension guide](docs/browser-extension.md)
+- The unpacked extension is in `browser-extension/dist`.
+- Configure your trusted Jitsi and Element domains in the extension options.
+
+You can skip the extension. Copying a Jitsi link into **Join meeting** works without it.
+
+### First-launch checklist
+
+- [ ] Element URL and Jitsi URL are saved.
+- [ ] Chat sign-in works.
+- [ ] Meet sign-in works.
+- [ ] Camera and microphone permission is granted.
+- [ ] A test Jitsi meeting opens.
+- [ ] Screen sharing works (Linux desktop portal / PipeWire).
+- [ ] Optional: the browser extension is installed and configured.
+
+## Common first-launch problems
+
+| Problem | What to check |
+|---|---|
+| Blank Element or Jitsi page | URL typo, VPN/network access, DNS, proxy, or certificate trust |
+| Login works in Chrome but not TeamWork | Check **Authentication → Trusted authentication origins**, or ask support about the user-agent override |
+| “Invalid certificate” | Install your organization’s CA system-wide; use the certificate training option only for controlled internal testing |
+| Jitsi link opens the browser | Install the browser extension, or use **Meet → Join meeting** and paste the link |
+| Screen sharing has no sources | Check `xdg-desktop-portal` and PipeWire; try the X11 backend from Settings if needed |
+| AppImage will not start | Check FUSE; try `APPIMAGE_EXTRACT_AND_RUN=1` or install the deb/rpm |
+| No automatic updates | Install a newer package from Releases; auto-update is not yet implemented |
+
+## What you get
+
+- One Teams-like window for Element chat and Jitsi meetings.
+- The official Element and Jitsi web clients, not reduced copies.
+- SAML/OpenID login through the normal web flow.
+- Configurable logo, name, theme, accent colour and density.
+- GUI-editable settings stored in one JSON file.
+- Logs, debug mode, screen sharing, tray support and Wayland support.
+- AppImage, deb and rpm packages for Linux.
+- An optional Chrome/Edge extension for normal HTTPS meeting links.
+
+## Important: what TeamWork does not do
+
+- It does not host Element, Matrix, Jitsi or your identity provider.
+- It does not create user accounts.
+- It does not replace your organization’s SSO configuration.
+- It does not unify Matrix and Jitsi identities; that is a server-side identity decision.
+- It does not yet provide automatic calendar discovery, auto-update, or a unified cross-application notification list.
+
+---
+
+# For developers and administrators
+
 ## Current build
 
 | Version | Build number | Build date | Build time | Hour |
 |---|---|---|---|---|
 | `0.1.0` | `202611011022` | `2026-11-01` | `10:22 UTC` | `10` |
 
-The version and build metadata are generated at build time and shown in the application status bar and **Settings → Application**. CI uses the workflow run number as the build number; local builds derive it from the UTC timestamp.
+Build metadata is generated at build time and shown in the application status bar, **Settings → Application**, and the **About** dialog. CI uses the workflow run number as the build number; local builds derive it from the UTC timestamp.
 
 Override build metadata when needed:
 
@@ -75,23 +187,18 @@ This is also why the application can support the complete Jitsi and Element feat
 - `rpmbuild` only when producing an RPM package (`sudo apt install rpm` on Ubuntu/Debian).
 - `zip` when packaging the browser extension.
 
-## Quick start
+## Developer quick start
 
 ```bash
 npm ci
 npm run dev
 ```
 
-On first launch, open **Settings → Connection** and enter:
+On first launch, open **Settings → Connection** and enter your Element and Jitsi URLs. The clients load from those URLs; TeamWork does not bundle the servers.
 
-- **Element URL** — for example `https://element.example.com`
-- **Jitsi Meet URL** — for example `https://meet.example.com`
+To join a meeting from an invite, open **Meet** and click **Join meeting** (`Ctrl+J`), then paste the Jitsi link. See [Deep links](docs/deep-links.md).
 
-The clients load from those URLs. TeamWork does not bundle Element or Jitsi servers.
-
-To join a meeting from an invite, open the **Meet** view and click **Join meeting** (`Ctrl+J`), then paste the Jitsi link. See [Deep links](docs/deep-links.md) for clickable `teamwork://` invitation links.
-
-For automatic conversion of normal HTTPS links, install the [Chrome/Edge extension](docs/browser-extension.md). The unpacked extension is in `browser-extension/dist`; a packaged zip is produced in `release/`.
+For automatic conversion of normal HTTPS links, see [Browser extension](docs/browser-extension.md).
 
 ## Build and package
 
@@ -169,6 +276,8 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 - Custom CSS is user-controlled local configuration, not remote input.
 - Sessions can be cleared per application or automatically on exit.
 
+Administrators should review [Enterprise readiness](docs/enterprise-readiness.md) before a managed rollout.
+
 ## Repository layout
 
 ```text
@@ -178,7 +287,7 @@ src/renderer/      React shell, settings, logs, screen-share picker
 src/shared/        Settings schema, URL policy, deep links, shared types
 browser-extension/ Chrome/Edge Manifest V3 Link Opener (source + built dist)
 tests/             Unit tests for schema, URL policy, deep links, stores
-docs/              Architecture, configuration, authentication, deep links, packaging
+docs/              Architecture, configuration, authentication, packaging
 build/             Icons and packaging resources
 scripts/           Icon and extension packaging scripts
 ```

@@ -6,6 +6,7 @@ describe('application paths', () => {
     const paths = resolveAppPaths({}, '/home/alice')
     expect(paths.configFile).toBe('/home/alice/.config/teamwork/config.json')
     expect(paths.logFile).toBe('/home/alice/.local/state/teamwork/logs/teamwork.log')
+    expect(paths.policyFile).toBe('/etc/teamwork/policy.json')
   })
 
   it('honours XDG environment variables', () => {
@@ -24,12 +25,14 @@ describe('application paths', () => {
     const paths = resolveAppPaths(
       {
         TEAMWORK_CONFIG_DIR: '/opt/teamwork-profile',
-        TEAMWORK_STATE_DIR: '/var/tmp/teamwork-state'
+        TEAMWORK_STATE_DIR: '/var/tmp/teamwork-state',
+        TEAMWORK_POLICY_FILE: '/opt/teamwork-profile/policy.json'
       },
       '/home/alice'
     )
     expect(paths.configFile).toBe('/opt/teamwork-profile/config.json')
     expect(paths.windowStateFile).toBe('/opt/teamwork-profile/window-state.json')
     expect(paths.logFile).toBe('/var/tmp/teamwork-state/logs/teamwork.log')
+    expect(paths.policyFile).toBe('/opt/teamwork-profile/policy.json')
   })
 })

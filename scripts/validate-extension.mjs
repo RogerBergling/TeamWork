@@ -15,8 +15,28 @@ const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
 const sourceManifest = JSON.parse(await readFile(resolve(source, 'manifest.json'), 'utf8'))
 const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'))
 
-if (JSON.stringify(manifest) !== JSON.stringify(sourceManifest)) {
+function withoutUpdateUrl(value) {
+  const clone = structuredClone(value)
+  delete clone.update_url
+  return clone
+}
+
+if (JSON.stringify(withoutUpdateUrl(manifest)) !== JSON.stringify(withoutUpdateUrl(sourceManifest))) {
   throw new Error('browser-extension/dist/manifest.json is stale; rebuild the extension')
+}
+if (manifest.update_url !== undefined) {
+  let updateUrl
+  try {
+    updateUrl = new URL(manifest.update_url)
+  } catch {
+    throw new Error('The extension update_url must be an absolute HTTPS URL')
+  }
+  if (updateUrl.protocol !== 'https:' || !updateUrl.hostname) {
+    throw new Error('The extension update_url must be an absolute HTTPS URL')
+  }
+  if (updateUrl.username || updateUrl.password) {
+    throw new Error('The extension update_url must not contain credentials')
+  }
 }
 if (manifest.manifest_version !== 3) {
   throw new Error('The extension must use Manifest V3')

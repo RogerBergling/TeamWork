@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import log from 'electron-log/main'
 import type { LogLevel, Settings } from '../shared/settings'
 
@@ -15,8 +15,20 @@ export class AppLogger {
   constructor(private readonly filePath: string) {
     log.transports.file.resolvePathFn = () => this.filePath
     log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}'
+    log.transports.file.writeOptions = {
+      encoding: 'utf8',
+      flag: 'a',
+      mode: 0o600
+    }
     log.transports.console.format = '[{h}:{i}:{s}] [{level}] {text}'
     log.errorHandler.startCatching({ showDialog: false })
+
+    try {
+      if (existsSync(this.filePath)) chmodSync(this.filePath, 0o600)
+    } catch {
+      // The log directory permissions are the primary control. A failure to
+      // tighten an existing file must not prevent the application from starting.
+    }
   }
 
   configure(settings: Settings['logging']): void {

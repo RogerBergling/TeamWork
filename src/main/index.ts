@@ -1,10 +1,12 @@
 import { app, dialog } from 'electron'
-import { mkdirSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { resolveAppPaths } from './paths'
 import { ConfigStore } from './config-store'
 import { AppLogger } from './logger'
 import { WindowStateStore } from './window-state'
 import { AppController } from './app-controller'
+import { PolicyStore } from './policy-store'
+import { findDebuggingSwitch } from './startup-guards'
 import { registerIpc } from './ipc'
 import { registerTeamWorkProtocol } from './protocol-registration'
 import { startupTimer } from './startup-timing'
@@ -25,22 +27,49 @@ app.setPath('userData', paths.configDir)
 app.setAppLogsPath(paths.logDir)
 
 const logger = new AppLogger(paths.logFile)
+
+// A packaged application must never expose a remote DevTools endpoint. Check
+// the raw arguments before any window or session is created.
+const debuggingSwitch = app.isPackaged ? findDebuggingSwitch(process.argv) : null
+if (debuggingSwitch) {
+  const message = `Refusing to start: ${debuggingSwitch} is not allowed in a packaged build.`
+  logger.error(message)
+  console.error(message)
+  process.exit(1)
+}
+
+for (const directory of [paths.configDir, paths.logDir]) {
+  try {
+    chmodSync(directory, 0o700)
+  } catch (error) {
+    logger.warn(`Could not restrict permissions on ${directory}`, error)
+  }
+}
+
 const configStore = new ConfigStore(paths.configFile, (message, error) =>
   logger.warn(message, error)
 )
 const loaded = configStore.load()
+const policyStore = new PolicyStore(paths.policyFile, (message, error) =>
+  logger.warn(message, error)
+)
+const policy = policyStore.load(loaded.settings)
+const initialSettings = policyStore.apply(loaded.settings)
 startupTimer.mark('config-loaded')
-logger.configure(loaded.settings.logging)
+logger.configure(initialSettings.logging)
 logger.info('TeamWork bootstrapping')
+logger.info(
+  `Policy: ${paths.policyFile}${policy.lockedFields.length > 0 ? ` (${policy.lockedFields.length} managed field(s))` : ''}`
+)
 
-if (!loaded.settings.advanced.hardwareAcceleration) {
+if (!initialSettings.advanced.hardwareAcceleration) {
   logger.warn('Hardware acceleration disabled by configuration')
   app.disableHardwareAcceleration()
 }
 
 // These switches must be set before the app becomes ready. Wayland is preferred
 // when available; the setting exists for troubleshooting stubborn drivers.
-const ozone = loaded.settings.linux.ozonePlatform
+const ozone = initialSettings.linux.ozonePlatform
 app.commandLine.appendSwitch('ozone-platform-hint', ozone)
 app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer,WaylandWindowDecorations')
 if (ozone !== 'x11') {
@@ -52,7 +81,7 @@ if (ozone !== 'x11') {
 let controller: AppController | null = null
 let pendingSecondInstanceArgv: string[] | null = null
 let initialDeepLink = findDeepLinkInArgv(process.argv)
-const settingsProvider = () => controller?.snapshot().settings ?? loaded.settings
+const settingsProvider = () => controller?.snapshot().settings ?? initialSettings
 
 app.on('certificate-error', (event, _webContents, url, error, _certificate, callback) => {
   if (settingsProvider().authentication.allowInsecureCertificates) {
@@ -110,7 +139,7 @@ if (!gotLock) {
         logger.warn(message, error)
       )
 
-      controller = new AppController(paths, configStore, logger, windowState)
+      controller = new AppController(paths, configStore, policyStore, logger, windowState)
       controller.start()
       registerIpc(controller)
       void registerTeamWorkProtocol(logger)

@@ -43,12 +43,14 @@ export function isTrustedOrigin(target: string, trustedOrigins: string[]): boole
 export function shouldOpenExternally(
   target: string,
   appUrl: string,
-  trustedAuthOrigins: string[]
+  trustedAuthOrigins: string[],
+  externalBrowserSso = false
 ): boolean {
   if (!parseHttpUrl(target)) return true
   if (sameOrigin(target, appUrl)) return false
   if (trustedAuthOrigins.length === 0) return false
-  return !isTrustedOrigin(target, trustedAuthOrigins)
+  if (isTrustedOrigin(target, trustedAuthOrigins)) return externalBrowserSso
+  return true
 }
 
 export function isExternalProtocolAllowed(value: string): boolean {

@@ -6,6 +6,7 @@ interface SettingControlProps {
   field: SettingField
   value: unknown
   fallbackLogo: string
+  disabled?: boolean
   onChange: (value: unknown) => void
   onChooseLogo: () => Promise<string | null>
   onLogoData: (path: string) => Promise<string | null>
@@ -15,6 +16,7 @@ export function SettingControl({
   field,
   value,
   fallbackLogo,
+  disabled = false,
   onChange,
   onChooseLogo,
   onLogoData
@@ -28,6 +30,8 @@ export function SettingControl({
         id={id}
         role="switch"
         aria-checked={Boolean(value)}
+        aria-disabled={disabled}
+        disabled={disabled}
         className={`toggle${value ? ' is-on' : ''}`}
         onClick={() => onChange(!value)}
       >
@@ -43,6 +47,7 @@ export function SettingControl({
         id={id}
         className="input select"
         value={String(value ?? '')}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       >
         {field.options?.map((option) => (
@@ -64,6 +69,7 @@ export function SettingControl({
         max={field.max}
         step={field.step ?? 1}
         value={typeof value === 'number' ? value : 0}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     )
@@ -80,6 +86,7 @@ export function SettingControl({
           type="color"
           value={validColor}
           aria-label={`${field.label} colour picker`}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
         />
         <input
@@ -87,6 +94,7 @@ export function SettingControl({
           type="text"
           value={color}
           spellCheck={false}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
         />
       </div>
@@ -102,6 +110,7 @@ export function SettingControl({
         value={String(value ?? '')}
         placeholder={field.placeholder}
         spellCheck={false}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
     )
@@ -113,6 +122,7 @@ export function SettingControl({
         id={id}
         value={Array.isArray(value) ? value.map(String) : []}
         placeholder={field.placeholder}
+        disabled={disabled}
         onChange={onChange}
       />
     )
@@ -125,6 +135,7 @@ export function SettingControl({
         value={String(value ?? '')}
         placeholder={field.placeholder}
         fallbackLogo={fallbackLogo}
+        disabled={disabled}
         onChange={onChange}
         onChooseLogo={onChooseLogo}
         onLogoData={onLogoData}
@@ -141,6 +152,7 @@ export function SettingControl({
       placeholder={field.placeholder}
       spellCheck={false}
       autoComplete="off"
+      disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
     />
   )
@@ -150,11 +162,13 @@ function ListControl({
   id,
   value,
   placeholder,
+  disabled,
   onChange
 }: {
   id: string
   value: string[]
   placeholder?: string
+  disabled: boolean
   onChange: (value: unknown) => void
 }): React.JSX.Element {
   const [focused, setFocused] = useState(false)
@@ -172,6 +186,7 @@ function ListControl({
       value={raw}
       placeholder={placeholder}
       spellCheck={false}
+      disabled={disabled}
       onChange={(event) => {
         const next = event.target.value
         setRaw(next)
@@ -193,6 +208,7 @@ function FileControl({
   value,
   placeholder,
   fallbackLogo,
+  disabled,
   onChange,
   onChooseLogo,
   onLogoData
@@ -201,6 +217,7 @@ function FileControl({
   value: string
   placeholder?: string
   fallbackLogo: string
+  disabled: boolean
   onChange: (value: unknown) => void
   onChooseLogo: () => Promise<string | null>
   onLogoData: (path: string) => Promise<string | null>
@@ -236,11 +253,13 @@ function FileControl({
           value={value}
           placeholder={placeholder ?? 'Bundled logo'}
           spellCheck={false}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
         />
         <button
           type="button"
           className="button secondary"
+          disabled={disabled}
           onClick={() => {
             void onChooseLogo().then((path) => {
               if (path) onChange(path)
@@ -260,7 +279,12 @@ function FileControl({
               : 'Bundled TeamWork logo'}
         </span>
         {value ? (
-          <button type="button" className="link-button" onClick={() => onChange('')}>
+          <button
+            type="button"
+            className="link-button"
+            disabled={disabled}
+            onClick={() => onChange('')}
+          >
             <Icon name="close" size={13} />
             Use bundled logo
           </button>

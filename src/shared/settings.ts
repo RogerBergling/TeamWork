@@ -71,6 +71,7 @@ export const settingsSchema = z
             .refine((value) => isHttpUrl(value), 'Each entry must be a valid http:// or https:// origin')
         )
         .max(100),
+      externalBrowserSso: z.boolean(),
       allowInsecureCertificates: z.boolean(),
       clearSessionsOnExit: z.boolean(),
       notifications: z.boolean()
@@ -106,6 +107,16 @@ export const settingsSchema = z
         code: 'custom',
         path: ['network', 'proxyUrl'],
         message: 'A proxy URL is required when the proxy mode is custom'
+      })
+    }
+    if (
+      value.authentication.externalBrowserSso &&
+      value.authentication.trustedAuthOrigins.length === 0
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['authentication', 'trustedAuthOrigins'],
+        message: 'Add at least one trusted authentication origin before enabling system-browser SSO'
       })
     }
   })

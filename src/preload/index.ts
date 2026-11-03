@@ -44,6 +44,9 @@ const api: TeamWorkApi = {
   onScreenShareCancelled: (callback) => {
     ipcRenderer.on('screenshare:cancelled', (_event, id) => callback(id))
   },
+  onExternalAuth: (callback) => {
+    ipcRenderer.on('auth:external', (_event, event) => callback(event))
+  },
   onCommand: (callback) => {
     ipcRenderer.on('app:command', (_event, command) => callback(command))
   },

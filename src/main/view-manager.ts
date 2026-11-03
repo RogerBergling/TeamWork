@@ -7,6 +7,7 @@ import {
   type WebContents
 } from 'electron'
 import type {
+  ExternalAuthEvent,
   ManagedView,
   ScreenShareRequest,
   ScreenShareSource,
@@ -15,7 +16,13 @@ import type {
 } from '../shared/types'
 import type { Settings } from '../shared/settings'
 import { safeUrlForLog } from '../shared/deep-links'
-import { shouldOpenExternally, isExternalProtocolAllowed, parseHttpUrl } from '../shared/urls'
+import {
+  hostOf,
+  isExternalProtocolAllowed,
+  isTrustedOrigin,
+  parseHttpUrl,
+  shouldOpenExternally
+} from '../shared/urls'
 import type { AppLogger } from './logger'
 import type { SessionManager } from './session-manager'
 
@@ -76,7 +83,8 @@ export class ViewManager {
     private readonly logger: AppLogger,
     private readonly onStatus: (status: ViewStatus) => void,
     private readonly onScreenShareRequest: (request: ScreenShareRequest) => void,
-    private readonly onScreenShareCancelled: (id: number) => void
+    private readonly onScreenShareCancelled: (id: number) => void,
+    private readonly onExternalAuth: (event: ExternalAuthEvent) => void = () => undefined
   ) {
     this.sessions.setDisplayMediaHandler((view, request, callback) => {
       void this.handleDisplayMediaRequest(view, request, callback)
@@ -437,18 +445,8 @@ export class ViewManager {
         return { action: 'deny' }
       }
 
-      const appUrl =
-        kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
-
-      if (
-        shouldOpenExternally(
-          url,
-          appUrl,
-          this.settings.authentication.trustedAuthOrigins
-        )
-      ) {
-        this.logger.debug(`Opening external popup in the system browser: ${safeUrlForLog(url)}`)
-        void shell.openExternal(url)
+      if (this.shouldOpenExternal(url, kind)) {
+        this.openExternal(kind, url, 'Opening external popup')
         return { action: 'deny' }
       }
 
@@ -467,47 +465,95 @@ export class ViewManager {
       this.logger.debug(`Opened authentication or popup window for ${VIEW_LABEL[kind]}`)
     })
 
+    contents.on('before-input-event', (event, input) => {
+      if (this.settings.advanced.enableDevTools) return
+      const key = input.key.toLowerCase()
+      const withModifier = input.control || input.meta
+      if (key === 'f12' || (withModifier && input.shift && ['i', 'j', 'c'].includes(key))) {
+        event.preventDefault()
+      }
+    })
+
     contents.on('will-navigate', (event) => {
       const target = event.url
       if (!parseHttpUrl(target)) {
-        if (isExternalProtocolAllowed(target)) void shell.openExternal(target)
         event.preventDefault()
+        if (isExternalProtocolAllowed(target)) void shell.openExternal(target)
+        else {
+          this.logger.warn(
+            `Blocked unsupported navigation from ${VIEW_LABEL[kind]}: ${safeUrlForLog(target)}`
+          )
+        }
         return
       }
 
-      const appUrl =
-        kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
-      if (
-        shouldOpenExternally(
-          target,
-          appUrl,
-          this.settings.authentication.trustedAuthOrigins
-        )
-      ) {
+      if (this.shouldOpenExternal(target, kind)) {
         event.preventDefault()
-        this.logger.debug(`Opening navigation target in system browser: ${safeUrlForLog(target)}`)
-        void shell.openExternal(target)
+        const externalSso = this.openExternal(kind, target, 'Opening navigation target')
+        if (externalSso && !this.isMainContents(kind, contents)) {
+          setTimeout(() => {
+            if (!contents.isDestroyed()) contents.close()
+          }, 0)
+        }
       }
     })
 
     contents.on('will-redirect', (event) => {
       const target = event.url
-      if (!parseHttpUrl(target)) return
-
-      const appUrl =
-        kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
-      if (
-        shouldOpenExternally(
-          target,
-          appUrl,
-          this.settings.authentication.trustedAuthOrigins
-        )
-      ) {
+      if (!parseHttpUrl(target)) {
         event.preventDefault()
-        this.logger.debug(`Opening redirect target in system browser: ${safeUrlForLog(target)}`)
-        void shell.openExternal(target)
+        if (isExternalProtocolAllowed(target)) {
+          void shell.openExternal(target)
+        } else {
+          this.logger.warn(
+            `Blocked non-HTTP redirect for ${VIEW_LABEL[kind]}: ${safeUrlForLog(target)}`
+          )
+        }
+        return
+      }
+
+      if (this.shouldOpenExternal(target, kind)) {
+        event.preventDefault()
+        const externalSso = this.openExternal(kind, target, 'Opening redirect target')
+        if (externalSso && !this.isMainContents(kind, contents)) {
+          setTimeout(() => {
+            if (!contents.isDestroyed()) contents.close()
+          }, 0)
+        }
       }
     })
+  }
+
+  private shouldOpenExternal(target: string, kind: ManagedView): boolean {
+    const appUrl =
+      kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
+    return shouldOpenExternally(
+      target,
+      appUrl,
+      this.settings.authentication.trustedAuthOrigins,
+      this.settings.authentication.externalBrowserSso
+    )
+  }
+
+  private isMainContents(kind: ManagedView, contents: WebContents): boolean {
+    return this.entries.get(kind)?.view.webContents === contents
+  }
+
+  private openExternal(kind: ManagedView, target: string, reason: string): boolean {
+    const trustedAuthOrigins = this.settings.authentication.trustedAuthOrigins
+    const externalSso =
+      this.settings.authentication.externalBrowserSso &&
+      isTrustedOrigin(target, trustedAuthOrigins)
+    if (externalSso) {
+      this.logger.info(
+        `Opening external sign-in for ${VIEW_LABEL[kind]} in the system browser: ${safeUrlForLog(target)}`
+      )
+      this.onExternalAuth({ view: kind, host: hostOf(target) })
+    } else {
+      this.logger.debug(`${reason} in the system browser: ${safeUrlForLog(target)}`)
+    }
+    void shell.openExternal(target)
+    return externalSso
   }
 
   private ensureLoaded(kind: ManagedView): void {

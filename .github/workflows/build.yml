@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 30
     env:
       BUILD_NUMBER: ${{ github.run_number }}
+      EXTENSION_UPDATE_URL: ${{ vars.EXTENSION_UPDATE_URL }}
 
     steps:
       - name: Check out repository

@@ -14,6 +14,7 @@ TeamWork never reads passwords, access tokens, or SAML assertions. They remain i
 - **Persistent sessions.** Element and Jitsi each have a separate Chromium partition (`persist:element`, `persist:jitsi`). Cookies and storage survive restarts.
 - **Top-level redirects.** SAML POST bindings, OpenID redirects, consent pages, MFA prompts, and tenant selection pages are allowed in the embedded view.
 - **Popups.** `window.open` login windows are allowed with the same session partition and sandbox. `window.opener` messaging keeps OIDC popup flows working.
+- **Optional system-browser handoff.** Trusted IdP origins can be opened in the default browser, with a `teamwork://auth` callback. See [System-browser SSO fallback](#system-browser-sso-fallback).
 - **User agent.** Electron is removed from the default user agent. Some IdPs reject requests containing "Electron"; the resulting UA is a normal Chrome UA on Linux.
 - **No credential interception.** There is no login form in the shell and no password storage in the config file.
 
@@ -34,10 +35,52 @@ Matching is by origin only: `scheme://host[:port]`. A path in an entry is ignore
 With at least one trusted origin configured:
 
 - The configured Element/Jitsi origin stays in-app.
-- Trusted IdP origins stay in-app.
+- Trusted IdP origins stay in-app, unless system-browser SSO is enabled.
 - Other links open in the system browser.
 
 This keeps ordinary web links out of the application without breaking sign-in.
+
+## System-browser SSO fallback
+
+Some identity providers refuse to render their sign-in page in an embedded browser. TeamWork can hand trusted authentication navigations to the default system browser:
+
+1. Add the IdP origins under **Authentication → Trusted authentication origins**.
+2. Enable **Authentication → Use the system browser for SSO**.
+3. Configure the IdP to return to TeamWork after authentication.
+
+When the embedded Element or Jitsi view navigates or opens a popup to a trusted origin, TeamWork opens that page in the default browser and shows a notification.
+
+### IdP redirect URI
+
+Register one of these callback URIs at the IdP:
+
+```text
+teamwork://auth?view=element
+teamwork://auth?view=jitsi
+teamwork://auth/callback?view=element
+teamwork://auth/callback?view=jitsi
+```
+
+The callback can also carry a return URL on the configured application origin:
+
+```text
+teamwork://auth?view=element&url=https%3A%2F%2Felement.example.com%2F...
+```
+
+TeamWork validates the return URL against the configured Element/Jitsi origin before loading it. A callback for another origin is rejected. Tokens and query parameters are not written to the main log.
+
+A callback is accepted only while a system-browser sign-in started by TeamWork is pending (30-minute window, persisted across a restart). This prevents an arbitrary website from invoking `teamwork://auth` and forcing a login URL into an embedded session. Trigger the sign-in from the Element or Jitsi view; a callback from a manually started browser session is rejected.
+
+If `view` is omitted, TeamWork infers the application from the return URL. If both Element and Jitsi are configured and there is no return URL, the callback must specify `view=element` or `view=jitsi`.
+
+### Important limitation
+
+The system browser and the embedded Chromium session have separate cookie stores. Opening the IdP externally removes the embedded-browser rejection, but the application/IdP must still return a URL or token that the embedded client accepts. TeamWork does not act as an OAuth client, does not exchange authorization codes, and does not copy cookies between browsers.
+
+- Matrix/Element SSO needs a return URL that Element can complete (for example a `loginToken` URL).
+- Jitsi needs a JWT or another callback flow supported by your deployment.
+- SAML HTTP-POST to a server-side ACS endpoint cannot be intercepted by the desktop application; the IdP or reverse proxy must provide a desktop-compatible return path.
+- If the IdP cannot redirect to a custom URI scheme, system-browser SSO cannot complete automatically. Keep the embedded flow, use the user-agent override, or ask the IdP administrator for a supported OIDC client flow.
 
 ## Matrix / Element
 
@@ -73,10 +116,10 @@ A common enterprise setup is a shared IdP (Keycloak, Authentik, Entra ID, Okta) 
 Some providers intentionally refuse to render login pages inside embedded webviews. Workarounds, in order:
 
 1. **Override the user agent** under **Connection → Element/Jitsi user agent override** with a current desktop Chrome UA.
-2. **Allow the IdP origin** in trusted authentication origins if redirects are being sent to the system browser.
+2. **Enable system-browser SSO** and add the IdP origins to trusted authentication origins. See [System-browser SSO fallback](#system-browser-sso-fallback).
 3. **Ask the IdP administrator** to permit the application or use a supported OIDC client flow.
 
-Flows that *require* a separate system browser and a deep link back into the application are not supported yet. That is a known limitation.
+The system-browser path is a handoff, not a cookie-sharing mechanism. It is only complete when your IdP and the Element/Jitsi deployment return a URL or token that the embedded client accepts.
 
 ## Certificates
 

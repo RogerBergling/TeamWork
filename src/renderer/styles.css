@@ -810,6 +810,20 @@ button:disabled {
   color: var(--warning);
 }
 
+.managed-badge {
+  margin-left: 7px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-strong);
+}
+
+.setting-row.is-locked .setting-copy label {
+  cursor: default;
+}
+
+.setting-row.is-locked .setting-input {
+  opacity: 0.72;
+}
+
 .input {
   width: 100%;
   padding: 7px 9px;
@@ -1104,6 +1118,12 @@ button:disabled {
   color: var(--text);
 }
 
+.inline-alert.info {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  color: var(--text);
+}
+
 .inline-alert strong {
   font-size: 12px;
 }
@@ -1117,6 +1137,10 @@ button:disabled {
   flex: none;
   color: var(--danger);
   margin-top: 1px;
+}
+
+.inline-alert.info svg {
+  color: var(--accent);
 }
 
 .search-summary {

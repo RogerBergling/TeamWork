@@ -9,20 +9,20 @@ TeamWork has a solid technical foundation, but several controls expected in a ma
 | Area | Status | Summary |
 |---|---|---|
 | Core architecture | Good | Sandboxed shell, isolated Element/Jitsi sessions, narrow preload API, WebContentsView isolation. |
-| Runtime hardening | Partial | Sandbox is now enforced app-wide and Electron fuses are enabled. Devtools, `file://` shell privileges, and navigation defaults still need policy. |
-| Authentication / SSO | Partial | Web SAML/OpenID flows work inside the embedded clients. External-browser-only IdPs, token exchange, and logout propagation are not implemented. |
-| Configuration management | Gap | User JSON config exists, but there is no system-wide policy file, lock enforcement, or MDM integration. |
+| Runtime hardening | Partial | Sandbox and fuses are enforced; non-HTTP(S) redirects are blocked, packaged builds reject remote-debugging/inspector switches, and managed devtools settings are enforced. CSP and the shell `file://` origin still need work. |
+| Authentication / SSO | Partial | Web SAML/OpenID flows work inside the embedded clients. System-browser handoff and a validated `teamwork://auth` callback are implemented; real IdP/token-broker validation is still required. |
+| Configuration management | Partial | User JSON config plus a read-only `/etc/teamwork/policy.json` with GUI locking and main-process enforcement. MDM templates and audit trails still need work. |
 | Package signing | Gap | AppImage/deb/rpm are unsigned. The release workflow builds artifacts but does not sign them. |
-| Updates | Gap | No auto-update or signed update channel. |
+| Updates | Partial | The browser extension can embed an HTTPS `update_url`; desktop auto-update and a signed desktop update feed are still missing. |
 | Observability | Partial | Rotating local logs and renderer error forwarding exist. No SIEM/syslog transport, support bundle, crash reporting, or audit trail. |
 | Network / TLS | Partial | System/custom proxy and optional invalid-certificate override exist. No proxy authentication, PAC UI, mTLS client-certificate selection, or enterprise CA workflow. |
 | Access control | Partial | Permission prompts and per-session isolation exist. No central permission policy or admin lock. |
-| Browser extension | Partial | Managed-storage schema and FQDN configuration exist. No fixed extension ID, signed CRX/update URL, store listing, or authenticated browser E2E test. |
+| Browser extension | Partial | Managed-storage schema and FQDN configuration exist, plus optional HTTPS `update_url` injection. No fixed extension ID, signed CRX/update feed hosting, store listing, or authenticated browser E2E test. |
 | Reliability | Partial | Session persistence, retries, and error states exist. No auto-update rollback, long-run soak tests, or packaged-artifact CI tests. |
 | Accessibility | Gap | Basic labels/roles exist; no WCAG/EN 301 549 audit, focus traps, zoom controls, or screen-reader validation. |
 | Compliance / legal | Partial | Apache-2.0 shell, Element AGPL notice, trademark notice. No privacy policy, DPA guidance, SBOM, or export-control review. |
 | Platform coverage | Gap | Linux x86_64 only. No ARM64, Flatpak, Windows, or macOS. |
-| Quality engineering | Partial | 63 unit tests, TypeScript checks, build and smoke tests. No lint, coverage gate, E2E suite, or real Wayland/SSO test. |
+| Quality engineering | Partial | 89 unit tests, TypeScript checks, build and smoke tests. No lint, coverage gate, E2E suite, or real Wayland/SSO test. |
 | Supply chain | Gap | No CodeQL, dependency review, SBOM, artifact attestations, or pinned GitHub Action SHAs. |
 
 ## What is already in good shape
@@ -32,6 +32,9 @@ TeamWork has a solid technical foundation, but several controls expected in a ma
 - Persistent, isolated Chromium partitions keep Element and Jitsi sessions separate.
 - Deep links are origin-validated and tokens are redacted from the main log.
 - Configuration is schema-validated, written atomically with `0600` permissions, and invalid files are backed up.
+- A read-only system policy locks managed fields in the GUI and is enforced in the main process.
+- Trusted authentication origins can be handed to the system browser, with a validated `teamwork://auth` callback.
+- The browser extension can be built with an HTTPS update URL for a self-hosted update manifest.
 - Permission prompts are restricted to configured origins, with explicit prompts for cross-origin media.
 - AppImage, deb, and rpm packaging, desktop integration, protocol registration, and a tag-based GitHub Release workflow exist.
 - The Chrome/Edge extension has managed-storage schema support, trusted FQDN configuration, SafeLinks unwrapping, and Jitsi/Matrix conversion tests.
@@ -56,34 +59,40 @@ TeamWork has a solid technical foundation, but several controls expected in a ma
 
 ### 2. Enterprise policy and locked settings
 
-**Problem:** all settings are user-editable JSON. There is no read-only system policy or MDM path.
+**Status:** implemented. See [Enterprise policy](policy.md).
 
-**Required:**
+**Implemented:**
 
 - Read `/etc/teamwork/policy.json` (override with `TEAMWORK_POLICY_FILE`).
-- Define precedence: defaults < user config < system policy.
-- Mark managed fields read-only in the GUI.
-- Enforce security-critical policy in main, even if the user file is edited.
-- Add schema/version validation and policy diagnostics.
-- Document MDM/Intune/Ansible deployment.
+- Precedence: defaults < user config < system policy.
+- Managed fields are read-only in the GUI.
+- Main-process enforcement on save, reset, import, and startup.
+- Schema/version validation, unknown-field rejection, and policy diagnostics.
+- Policy file rejected if group- or world-writable.
 
-**Suggested policy fields:** Element/Jitsi URLs, trusted auth origins, proxy, certificate policy, clear-sessions-on-exit, notifications, allowed views, devtools, update channel, extension deployment.
-
-**Files:** new `src/main/policy-store.ts`, `src/main/paths.ts`, `src/main/config-store.ts`, `src/main/app-controller.ts`, `src/shared/settings.ts`, `src/renderer/components/SettingsView.tsx`.
+**Remaining:** MDM/Intune/Ansible templates, policy audit events, and a fleet-wide policy-distribution test.
 
 ### 3. External-browser SSO fallback
 
-**Problem:** IdPs that refuse embedded browsers cannot complete sign-in.
+**Status:** implemented as a generic handoff with a validated callback; real IdP validation remains.
 
-**Required:**
+**Implemented:**
 
-- Open the IdP URL in the system browser when configured.
-- Register a callback deep link (`teamwork://auth/callback`) and forward the authorization code/token to the embedded client or a secure broker.
-- Support PKCE and state validation.
-- Never log codes/tokens; clear them after exchange.
-- Document which IdPs require this path.
+- Trusted IdP origins can open in the system browser.
+- `teamwork://auth` and `teamwork://auth/callback` callbacks are registered through the existing `teamwork://` protocol.
+- Callback return URLs are restricted to the configured Element/Jitsi origin and are never logged with query strings.
+- A one-shot, 30-minute pending marker prevents an arbitrary website from forcing an unsolicited auth callback.
+- GUI notification when a sign-in page is handed to the browser.
 
-**Files:** new `src/main/auth-flow.ts`, `src/main/index.ts`, `src/main/app-controller.ts`, `src/shared/deep-links.ts`, protocol registration.
+**Remaining:**
+
+- Validate the flow against Entra ID, Keycloak/Authentik, and the real Element/Jitsi deployments.
+- Implement a token broker or application-specific callback if the IdP cannot return a URL the embedded client accepts.
+- PKCE/state validation applies only if TeamWork becomes an OAuth client; it is still not an OAuth client.
+- Test logout and reauthentication.
+- SAML HTTP-POST to a server-side ACS cannot be intercepted by the desktop app.
+
+**Files:** `src/shared/auth-callback.ts`, `src/main/view-manager.ts`, `src/main/app-controller.ts`, `src/shared/urls.ts`, `docs/authentication.md`.
 
 ### 4. Real SSO and IdP validation
 
@@ -151,7 +160,7 @@ The AppImage/deb/rpm blobs are in Git history and exceed GitHub's recommended fi
 
 - Generate and publish a fixed extension ID/key.
 - Sign a CRX or publish to Chrome Web Store/Edge Add-ons under the organization account.
-- Add `update_url` and enterprise policy templates.
+- `update_url` injection is implemented; host a signed update manifest before enabling self-hosted updates.
 - Provide a managed policy example for force-install, domain allowlists, mode, and protocol auto-launch.
 - Add a real Chromium browser E2E test.
 - Add a diagnostics page for failed matches and protocol prompts.
@@ -221,6 +230,8 @@ The AppImage/deb/rpm blobs are in Git history and exceed GitHub's recommended fi
 9. Are there restrictions on telemetry, crash reporting, or third-party services?
 10. Who owns server-side Element/Jitsi/IdP operations?
 
+Related: [Enterprise policy](policy.md) · [Authentication](authentication.md) · [Browser extension updates](browser-extension.md#self-hosted-updates)
+
 ## Bottom line
 
-The application is a credible **pilot** today. It is not yet suitable for a regulated or large managed desktop fleet until **policy management, signed/updated artifacts, external-browser SSO, real IdP validation, and supply-chain controls** are in place. The existing architecture is a good base; the largest work is operational and identity-related, not a rewrite of the UI.
+The application is a credible **pilot** today. System policy, GUI locking, and the external-browser SSO handoff close part of the enterprise gap. It is not yet suitable for a regulated or large managed desktop fleet until **signed/updated artifacts, real IdP validation and token handoff, SIEM/audit integration, and supply-chain controls** are in place. The existing architecture is a good base; the largest work is operational and identity-related, not a rewrite of the UI.

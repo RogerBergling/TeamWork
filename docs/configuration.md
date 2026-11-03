@@ -34,6 +34,7 @@ The file is validated with a Zod schema. Unknown fields are removed, missing fie
   },
   "authentication": {
     "trustedAuthOrigins": ["https://login.example.com"],
+    "externalBrowserSso": false,
     "allowInsecureCertificates": false,
     "clearSessionsOnExit": false,
     "notifications": true
@@ -71,6 +72,7 @@ The file is validated with a Zod schema. Unknown fields are removed, missing fie
 |---|---|
 | `TEAMWORK_CONFIG_DIR` | Replaces `~/.config/teamwork` for the config file and Chromium session profile. |
 | `TEAMWORK_STATE_DIR` | Replaces `~/.local/state/teamwork`; logs go in its `logs/` subdirectory. |
+| `TEAMWORK_POLICY_FILE` | Replaces `/etc/teamwork/policy.json` as the read-only system policy. |
 | `TEAMWORK_SMOKE_TEST` | Internal CI/smoke-test switch. Starts the app, captures the shell, and exits. |
 | `TEAMWORK_SMOKE_SCREENSHOT` | Output PNG path used by the smoke test. |
 | `TEAMWORK_SMOKE_EXPECT_READY` | `element` or `jitsi`; fails the smoke test unless that view reaches `ready`. |
@@ -108,6 +110,7 @@ The file is validated with a Zod schema. Unknown fields are removed, missing fie
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `authentication.trustedAuthOrigins` | array of origins | `[]` | One per line in the GUI. Empty keeps every http(s) navigation in-app for maximum SAML/OpenID compatibility. With entries, non-matching links open in the system browser. |
+| `authentication.externalBrowserSso` | boolean | `false` | Opens trusted authentication origins in the system browser. Requires at least one trusted origin and an IdP redirect to `teamwork://auth`. See [Authentication](authentication.md#system-browser-sso-fallback). |
 | `authentication.allowInsecureCertificates` | boolean | `false` | Accepts invalid TLS certificates. Logs a warning for each exception. Prefer installing the CA system-wide. |
 | `authentication.clearSessionsOnExit` | boolean | `false` | Clears cookies, storage, cache, and auth cache for both embedded apps on quit. |
 | `authentication.notifications` | boolean | `true` | Grants desktop notification permission to the configured app origins. |
@@ -162,7 +165,13 @@ Open **Settings → Application**:
 - **Open file** opens the JSON in the default text editor.
 - **Export** writes the current configuration to a chosen file.
 - **Import** validates a JSON file and applies it atomically. Invalid files are rejected without changing the current configuration.
-- **Reset settings** restores all defaults; it does not clear embedded sessions.
+- **Reset settings** restores all defaults; it does not clear embedded sessions or override system policy.
+
+## System policy
+
+A read-only policy can enforce settings for a managed fleet. The default path is `/etc/teamwork/policy.json`; override it with `TEAMWORK_POLICY_FILE`. Fields present in the policy override the user file and are locked in the GUI.
+
+See [Enterprise policy](policy.md) for the precedence rules, example, and deployment guidance. Policy values are applied by the main process even if the user edits or imports `config.json` directly.
 
 ## Session data
 

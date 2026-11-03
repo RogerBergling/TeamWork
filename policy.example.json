@@ -1,0 +1,29 @@
+{
+  "servers": {
+    "elementUrl": "https://element.example.com",
+    "jitsiUrl": "https://meet.example.com",
+    "startView": "element"
+  },
+  "appearance": {
+    "appName": "TeamWork",
+    "organizationName": "Example GmbH",
+    "customCss": ""
+  },
+  "authentication": {
+    "trustedAuthOrigins": ["https://login.example.com"],
+    "externalBrowserSso": false,
+    "allowInsecureCertificates": false,
+    "clearSessionsOnExit": true,
+    "notifications": true
+  },
+  "logging": {
+    "debug": false,
+    "level": "info"
+  },
+  "network": {
+    "proxyMode": "system"
+  },
+  "advanced": {
+    "enableDevTools": false
+  }
+}

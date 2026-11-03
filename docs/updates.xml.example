@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  Example Chrome/Edge self-hosted extension update manifest.
+
+  1. Replace EXTENSION_ID with the ID of the signed CRX.
+  2. Host the CRX and this updates.xml on an HTTPS server.
+  3. Build the extension with the URL of this file:
+       EXTENSION_UPDATE_URL=https://updates.example.com/teamwork/updates.xml npm run extension:build
+  4. Serve the CRX with Content-Type application/x-chrome-extension and the
+     update manifest with application/xml.
+  5. Bump the version in browser-extension/manifest.json, rebuild, sign, and
+     update both the codebase URL and the version below.
+
+  Do not point update_url at an unauthenticated HTTP server.
+-->
+<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
+  <app appid='EXTENSION_ID'>
+    <updatecheck
+      codebase='https://updates.example.com/teamwork/TeamWork-Browser-Extension.crx'
+      version='0.1.0' />
+  </app>
+</gupdate>

@@ -5,7 +5,7 @@ TeamWork is a Linux desktop client that puts **Element (Matrix)** chat and **Jit
 **Latest build:** `0.1.0` · build `202611011022` · `2026-11-01 10:22 UTC`
 
 **Users:** [Get started](#the-easy-way-to-get-running)<br />
-**Administrators:** [Enterprise readiness](docs/enterprise-readiness.md) · [Packaging](docs/packaging.md)<br />
+**Administrators:** [Enterprise readiness](docs/enterprise-readiness.md) · [Enterprise policy](docs/policy.md) · [Packaging](docs/packaging.md)<br />
 **Developers:** [Build from source](#developer-quick-start) · [Architecture](docs/architecture.md)
 
 <p align="center">
@@ -167,7 +167,9 @@ This is also why the application can support the complete Jitsi and Element feat
 - **Join Jitsi meetings from a URL** using the Join meeting dialog (`Ctrl+J`) or a `teamwork://join?...` deep link from Outlook, email, or chat.
 - **Chrome/Edge Link Opener extension** that converts ordinary Jitsi and Matrix/Element HTTPS links into TeamWork deep links, with trusted-domain and public-service detection.
 - **Web-based authentication preserved**, including SAML and OpenID redirect flows and login popups.
+- **Optional system-browser SSO** for identity providers that reject embedded browsers, with an origin-validated `teamwork://auth` callback.
 - **Every TeamWork setting editable in the GUI**, saved to a single JSON file.
+- **Read-only enterprise policy** at `/etc/teamwork/policy.json` that locks managed fields in the GUI and is enforced by the main process.
 - **Configurable branding**: application name, organisation, accent colour, theme, density, and custom logo.
 - **Structured logging** with error, warning, info, and debug levels; a GUI debug switch; live log viewer; log rotation.
 - **Linux packages**: AppImage, `.deb`, and `.rpm` from the same codebase.
@@ -220,7 +222,7 @@ The AppImage is a single self-contained executable file. The `.deb` and `.rpm` a
 
 ## Configuration
 
-All settings live in one file:
+All user settings live in one file:
 
 ```text
 ~/.config/teamwork/config.json
@@ -239,6 +241,8 @@ TEAMWORK_CONFIG_DIR=/path/to/profile
 TEAMWORK_STATE_DIR=/path/to/state
 ```
 
+A managed deployment can enforce settings with a read-only policy file. See [Enterprise policy](docs/policy.md).
+
 See [Configuration reference](docs/configuration.md) for every field.
 
 ## Authentication
@@ -247,7 +251,8 @@ Authentication is performed by the embedded Element and Jitsi web clients, so th
 
 - SAML and OpenID redirects and popups are kept inside the application by default.
 - Add your IdP origins under **Authentication → Trusted authentication origins** to send unrelated links to the system browser while keeping SSO in-app.
-- Some identity providers reject embedded browsers. The per-application user-agent override is the first workaround; a provider that mandates a separate system browser cannot be supported end-to-end yet.
+- **Use the system browser for SSO** hands trusted IdP navigations to your default browser. The IdP must return to `teamwork://auth`; see [Authentication](docs/authentication.md#system-browser-sso-fallback). This is an origin-validated handoff, not a cookie-sharing mechanism.
+- Some identity providers reject embedded browsers. The per-application user-agent override is the first workaround; use system-browser SSO if the IdP supports a custom-scheme callback.
 - Matrix and Jitsi still have separate identities unless your deployment federates them through a shared IdP. The client does not merge accounts automatically.
 - Invalid internal TLS certificates can be accepted explicitly for private CA deployments; every exception is logged as a warning.
 
@@ -273,10 +278,14 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 - Packaged Electron runtime disables `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`, and inspector flags, loads only from the ASAR, and enables cookie encryption.
 - Permission requests (camera, microphone, screen capture, notifications) are granted automatically only for the configured application origin; other origins require an explicit dialog.
 - External links open in the system browser when trusted authentication origins are configured.
+- Non-HTTP(S) navigation and redirect targets are blocked. `mailto:` and `tel:` links are handed to the system handler.
+- Packaged builds refuse remote-debugging and Node-inspector switches.
+- A read-only system policy can lock managed settings; the main process enforces it even if the user edits the JSON file.
+- The log file is created with mode `0600` inside a `0700` state directory.
 - Custom CSS is user-controlled local configuration, not remote input.
 - Sessions can be cleared per application or automatically on exit.
 
-Administrators should review [Enterprise readiness](docs/enterprise-readiness.md) before a managed rollout.
+Administrators should review [Enterprise readiness](docs/enterprise-readiness.md) and [Enterprise policy](docs/policy.md) before a managed rollout.
 
 ## Repository layout
 
@@ -296,8 +305,8 @@ scripts/           Icon and extension packaging scripts
 
 The repository is validated with:
 
-- `npm run verify` — type checks, 63 unit tests, production builds, extension packaging, and manifest validation
-- `npm test` — 63 tests across settings, URL policy, deep links, extension matching, config store, window state, paths, startup timing, and build metadata
+- `npm run verify` — type checks, 89 unit tests, production builds, extension packaging, and manifest validation
+- `npm test` — 89 tests across settings, URL policy, deep links, auth callbacks, policy enforcement, pending-auth markers, extension matching, config store, window state, paths, startup timing, and build metadata
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test
@@ -312,7 +321,8 @@ The repository is validated with:
 - Jitsi calls launched from Element rely on your deployment's Jitsi widget configuration. The dedicated Jitsi tab always provides the full standalone client.
 - Normal Jitsi HTTPS links open the browser unless the Chrome/Edge extension is installed, or a `teamwork://join?...` link is used. Automatic calendar discovery would still require ICS or Microsoft Graph integration.
 - The browser extension is Chromium-only (Chrome/Edge). Mobile browsers and non-Chromium browsers are not covered.
-- No auto-update mechanism yet; updates are delivered by replacing the AppImage or installing a newer package.
+- External-browser SSO requires the IdP to redirect to `teamwork://auth` and to return a URL or token the embedded Element/Jitsi client accepts. The system browser and the embedded session do not share cookies.
+- No desktop auto-update mechanism yet; updates are delivered by replacing the AppImage or installing a newer package. The browser extension can use a self-hosted `update_url`.
 - Element Web is AGPL-3.0. TeamWork loads it from your server by default and does not redistribute Element. If you bundle a modified Element build, AGPL obligations apply. See [Third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## License
@@ -321,6 +331,6 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 
 ---
 
-Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Performance](docs/performance.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
+Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Enterprise policy](docs/policy.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Performance](docs/performance.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
 
 Project: [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)

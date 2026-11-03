@@ -43,6 +43,9 @@ export interface ScreenShareRequest {
 export interface SettingsMeta {
   configPath: string
   logPath: string
+  policyPath: string
+  lockedFields: string[]
+  policyError?: string
   appVersion: string
   buildNumber: string
   buildTimestamp: string
@@ -96,6 +99,11 @@ export interface JoinMeetingResult {
   url?: string
 }
 
+export interface ExternalAuthEvent {
+  view: ManagedView
+  host: string
+}
+
 export interface ImportExportResult {
   ok: boolean
   path?: string
@@ -137,6 +145,7 @@ export interface TeamWorkApi {
   onSettingsChanged(callback: (snapshot: SettingsSnapshot) => void): void
   onScreenShareRequest(callback: (request: ScreenShareRequest) => void): void
   onScreenShareCancelled(callback: (id: number) => void): void
+  onExternalAuth(callback: (event: ExternalAuthEvent) => void): void
   onCommand(callback: (command: AppCommand) => void): void
   onWindowState(callback: (state: WindowState) => void): void
 }

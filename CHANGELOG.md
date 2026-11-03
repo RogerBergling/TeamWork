@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Read-only system policy at `/etc/teamwork/policy.json` (override with `TEAMWORK_POLICY_FILE`) with defaults < user config < policy precedence, main-process enforcement, and read-only managed fields in the GUI.
+- Optional system-browser SSO handoff for identity providers that reject embedded browsers, with a validated `teamwork://auth` callback limited to the configured Element/Jitsi origins.
+- `EXTENSION_UPDATE_URL` build-time injection for a self-hosted browser-extension `update_url`, plus an `updates.xml` example and validation.
+- Policy, authentication, and browser-extension update documentation.
+
+### Security
+
+- Packaged builds refuse `--remote-debugging-port`, `--remote-debugging-pipe`, and Node inspector switches.
+- Non-HTTP(S) navigation and redirect targets are blocked instead of being left to Chromium.
+- Log files are created with mode `0600`; existing log and state directories are restricted to `0700`.
+- Policy files that are group- or world-writable, contain unknown fields, or fail schema validation are rejected.
+
 ## [0.1.0] - 2026-10-31
 
 ### Added

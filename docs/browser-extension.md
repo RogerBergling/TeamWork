@@ -169,6 +169,37 @@ To avoid the external-protocol prompt on managed machines, configure the Chromiu
 
 Without that policy, Chrome/Edge may show an “Open TeamWork?” confirmation once. This is a browser security feature and cannot be bypassed by the extension.
 
+### Self-hosted updates
+
+A self-hosted deployment needs a fixed extension ID, a signed CRX, and an HTTPS update manifest. The unpacked zip is suitable for testing or store submission, but it cannot update itself.
+
+Build the extension with the public URL of your `updates.xml`:
+
+```bash
+EXTENSION_UPDATE_URL=https://updates.example.com/teamwork/updates.xml \
+  npm run extension:build
+```
+
+The build injects `update_url` into `browser-extension/dist/manifest.json` and refuses non-HTTPS or credential-bearing URLs. `npm run extension:validate` verifies the injected URL.
+
+An update manifest template is provided in [`updates.xml.example`](updates.xml.example):
+
+```xml
+<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
+  <app appid='EXTENSION_ID'>
+    <updatecheck
+      codebase='https://updates.example.com/teamwork/TeamWork-Browser-Extension.crx'
+      version='0.1.0' />
+  </app>
+</gupdate>
+```
+
+Replace `EXTENSION_ID`, host the CRX and manifest over HTTPS, and keep the version in the manifest in sync with `browser-extension/manifest.json` and `package.json`. The browser verifies the CRX signature; an unsigned or incorrectly packed CRX will not be accepted. See your Chrome/Edge enterprise documentation for packaging and update-manifest details.
+
+`update_url` is not a substitute for a fixed extension ID or signing key. Generate those before distributing a self-hosted CRX.
+
+In GitHub Actions, set the repository variable `EXTENSION_UPDATE_URL` to the same manifest URL. The build and release workflows pass it to `npm run extension:build`; leave the variable unset for store builds.
+
 ## Build and package
 
 ```bash
@@ -185,6 +216,15 @@ release/TeamWork-Browser-Extension-0.1.0.zip
 ```
 
 The build uses esbuild for the service worker, content script, options page, popup, and interstitial. Icons are generated from the TeamWork application icon.
+
+To build with a self-hosted update URL:
+
+```bash
+EXTENSION_UPDATE_URL=https://updates.example.com/teamwork/updates.xml \
+  npm run extension:build
+```
+
+Without that variable the manifest has no `update_url`, which is the correct output for an unpacked development build or a store submission.
 
 ## Limitations
 

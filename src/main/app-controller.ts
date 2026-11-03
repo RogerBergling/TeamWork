@@ -13,16 +13,19 @@ import { join } from 'node:path'
 import type { AppPaths } from './paths'
 import type { ConfigStore, SaveConfigResult } from './config-store'
 import type { AppLogger } from './logger'
+import type { PolicyStore } from './policy-store'
 import type { WindowStateStore } from './window-state'
 import { SessionManager } from './session-manager'
 import { ViewManager } from './view-manager'
+import { PendingAuthStore } from './pending-auth'
 import { TrayController } from './tray'
 import { createShellWindow } from './shell-window'
 import { startupTimer } from './startup-timing'
 import { BUILD_NUMBER, BUILD_TIMESTAMP } from './build-info'
 import { chooseLogo, readLogoDataUrl, trayIconFor, windowIconFor } from './logo'
-import type { Settings } from '../shared/settings'
+import { getByPath, safeParseSettings, setByPath, type Settings } from '../shared/settings'
 import { formatBuildParts } from '../shared/build-info'
+import { isAuthCallbackLink, resolveAuthCallback } from '../shared/auth-callback'
 import {
   findDeepLinkInArgv,
   resolveJitsiMeetingInput,
@@ -49,6 +52,7 @@ export class AppController {
   private sessions: SessionManager | null = null
   private tray: TrayController | null = null
   private settings: Settings
+  private readonly pendingAuth: PendingAuthStore
   private quitting = false
   private sessionsCleared = false
   private shellReady = false
@@ -59,10 +63,12 @@ export class AppController {
   constructor(
     private readonly paths: AppPaths,
     private readonly configStore: ConfigStore,
+    private readonly policy: PolicyStore,
     private readonly logger: AppLogger,
     private readonly windowState: WindowStateStore
   ) {
-    this.settings = configStore.value
+    this.settings = policy.apply(configStore.value)
+    this.pendingAuth = new PendingAuthStore(join(paths.configDir, 'auth-pending.json'))
   }
 
   start(): void {
@@ -121,6 +127,14 @@ export class AppController {
     this.window.webContents.on('render-process-gone', (_event, details) => {
       this.logger.error('The TeamWork interface renderer stopped', details)
     })
+    this.window.webContents.on('before-input-event', (event, input) => {
+      if (this.settings.advanced.enableDevTools) return
+      const key = input.key.toLowerCase()
+      const withModifier = input.control || input.meta
+      if (key === 'f12' || (withModifier && input.shift && ['i', 'j', 'c'].includes(key))) {
+        event.preventDefault()
+      }
+    })
 
     this.views = new ViewManager(
       this.window,
@@ -136,7 +150,11 @@ export class AppController {
         this.send('view:status', status)
       },
       (request) => this.send('screenshare:request', request),
-      (id) => this.send('screenshare:cancelled', id)
+      (id) => this.send('screenshare:cancelled', id),
+      (event) => {
+        this.pendingAuth.record(event.view)
+        this.send('auth:external', event)
+      }
     )
     startupTimer.mark('views-prepared')
 
@@ -193,6 +211,9 @@ export class AppController {
     return {
       configPath: this.paths.configFile,
       logPath: this.paths.logFile,
+      policyPath: this.paths.policyFile,
+      lockedFields: this.policy.locked,
+      policyError: this.policy.error,
       appVersion: app.getVersion(),
       buildNumber: BUILD_NUMBER,
       buildTimestamp: BUILD_TIMESTAMP,
@@ -214,21 +235,30 @@ export class AppController {
 
   saveSettings(input: unknown): SaveConfigResult {
     const previous = this.settings
-    const result = this.configStore.save(input)
+    const parsed = safeParseSettings(input)
+    if (!parsed.ok) {
+      return { ok: false, errors: parsed.errors, message: 'Some settings are invalid.' }
+    }
+
+    // The GUI only knows the effective (policy-applied) values. Put the user's
+    // existing values back before writing so the user file remains the user's
+    // own configuration when a policy is later removed.
+    const result = this.configStore.save(this.preservePolicyLockedValues(parsed.settings))
     if (!result.ok || !result.settings) return result
 
-    this.settings = result.settings
+    this.settings = this.policy.apply(result.settings)
     this.applySettingsSafely(previous)
-    return result
+    return { ...result, settings: this.settings }
   }
 
   resetSettings(): SaveConfigResult {
     const previous = this.settings
     const result = this.configStore.reset()
     if (!result.ok || !result.settings) return result
-    this.settings = result.settings
+
+    this.settings = this.policy.apply(result.settings)
     this.applySettingsSafely(previous)
-    return result
+    return { ...result, settings: this.settings }
   }
 
   async exportSettings(): Promise<ImportExportResult> {
@@ -263,9 +293,9 @@ export class AppController {
     const saveResult = this.configStore.importFrom(result.filePaths[0])
     if (!saveResult.ok || !saveResult.settings) return saveResult
 
-    this.settings = saveResult.settings
+    this.settings = this.policy.apply(saveResult.settings)
     this.applySettingsSafely(previous)
-    return { ...saveResult, path: result.filePaths[0] }
+    return { ...saveResult, settings: this.settings, path: result.filePaths[0] }
   }
 
   async chooseLogo(): Promise<string | null> {
@@ -363,6 +393,34 @@ export class AppController {
     }
 
     this.logger.info(`Opening ${result.view} deep link ${safeUrlForLog(result.url)}`)
+    if (result.view === 'jitsi') this.views.openJitsiMeeting(result.url)
+    else this.views.openElementRoom(result.url)
+    return result
+  }
+
+  private openAuthCallback(raw: string): ResolvedDeepLink {
+    const result = resolveAuthCallback(
+      raw,
+      this.settings.servers.elementUrl,
+      this.settings.servers.jitsiUrl
+    )
+    if (!result.ok) {
+      this.logger.warn(`Rejected external sign-in callback: ${result.error}`)
+      return result
+    }
+    if (!this.views) {
+      return { ok: false, error: 'The embedded view is not available.' }
+    }
+    if (!this.pendingAuth.consume(result.view)) {
+      const message =
+        'No system-browser sign-in is pending for this application. Start sign-in from TeamWork and try again.'
+      this.logger.warn(`Rejected unsolicited external sign-in callback for ${result.view}`)
+      return { ok: false, error: message }
+    }
+
+    this.logger.info(
+      `Completing external sign-in for ${result.view} at ${safeUrlForLog(result.url)}`
+    )
     if (result.view === 'jitsi') this.views.openJitsiMeeting(result.url)
     else this.views.openElementRoom(result.url)
     return result
@@ -490,12 +548,15 @@ export class AppController {
     this.pendingDeepLink = null
     this.showWindow()
 
-    const result = this.openDeepLink(raw)
+    const authCallback = isAuthCallbackLink(raw)
+    const result = authCallback ? this.openAuthCallback(raw) : this.openDeepLink(raw)
     if (!result.ok) {
       const options: Electron.MessageBoxOptions = {
         type: 'warning',
-        title: 'Could not open TeamWork link',
-        message: 'TeamWork could not open the link.',
+        title: authCallback ? 'Could not complete sign-in' : 'Could not open TeamWork link',
+        message: authCallback
+          ? 'TeamWork could not complete the system-browser sign-in.'
+          : 'TeamWork could not open the link.',
         detail: result.error ?? 'The link target is invalid.',
         buttons: ['OK'],
         noLink: true
@@ -514,6 +575,15 @@ export class AppController {
     } catch (error) {
       this.logger.error('Some settings could not be applied at runtime', error)
     }
+  }
+
+  private preservePolicyLockedValues(settings: Settings): Settings {
+    let userSettings = structuredClone(settings)
+    for (const path of this.policy.locked) {
+      const existing = getByPath(this.configStore.value, path)
+      if (existing !== undefined) userSettings = setByPath(userSettings, path, existing)
+    }
+    return userSettings
   }
 
   private applySettings(previous: Settings): void {

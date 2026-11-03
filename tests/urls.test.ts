@@ -5,6 +5,7 @@ import {
   isTrustedOrigin,
   normalizeOrigin,
   originOf,
+  parseHttpUrl,
   sameOrigin,
   shouldOpenExternally
 } from '../src/shared/urls'
@@ -54,6 +55,35 @@ describe('URL policy', () => {
     expect(
       shouldOpenExternally('https://example.org/article', 'https://element.example.com', trusted)
     ).toBe(true)
+  })
+
+  it('offloads trusted authentication origins when system-browser SSO is enabled', () => {
+    const trusted = ['https://login.example.com']
+    expect(
+      shouldOpenExternally(
+        'https://login.example.com/saml',
+        'https://element.example.com',
+        trusted,
+        true
+      )
+    ).toBe(true)
+    expect(
+      shouldOpenExternally(
+        'https://element.example.com/room',
+        'https://element.example.com',
+        trusted,
+        true
+      )
+    ).toBe(false)
+  })
+
+  it('accepts only http(s) navigation targets', () => {
+    expect(parseHttpUrl('https://element.example.com/rooms/1')).not.toBeNull()
+    expect(parseHttpUrl('http://element.example.com/rooms/1')).not.toBeNull()
+    expect(parseHttpUrl('javascript:alert(1)')).toBeNull()
+    expect(parseHttpUrl('data:text/html,<h1>no</h1>')).toBeNull()
+    expect(parseHttpUrl('file:///etc/passwd')).toBeNull()
+    expect(parseHttpUrl('teamwork://auth')).toBeNull()
   })
 
   it('treats non-HTTP schemes as external', () => {

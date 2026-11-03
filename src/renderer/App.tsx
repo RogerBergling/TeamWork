@@ -149,6 +149,13 @@ export default function App(): React.JSX.Element {
     const unsubscribeScreenShareCancelled = bridge.onScreenShareCancelled((id) => {
       setScreenRequest((current) => (current?.id === id ? null : current))
     })
+    const unsubscribeExternalAuth = bridge.onExternalAuth((event) => {
+      const label = event.view === 'element' ? 'Element' : 'Jitsi'
+      showToast(
+        `${label} sign-in for ${event.host} opened in your system browser. Complete it there, then return to TeamWork.`,
+        'info'
+      )
+    })
     const unsubscribeCommand = bridge.onCommand((command) => {
       if (command === 'element' || command === 'jitsi' || command === 'settings' || command === 'logs') {
         setJoinMeetingOpen(false)
@@ -166,10 +173,11 @@ export default function App(): React.JSX.Element {
       unsubscribeSettings()
       unsubscribeScreenShare()
       unsubscribeScreenShareCancelled()
+      unsubscribeExternalAuth()
       unsubscribeCommand()
       unsubscribeWindow()
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => {
     const onError = (event: ErrorEvent): void => {

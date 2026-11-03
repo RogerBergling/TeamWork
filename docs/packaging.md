@@ -165,7 +165,7 @@ The release workflow is the preferred distribution path. The large binaries comm
 The following was validated locally:
 
 - `npm run typecheck`
-- `npm test` — 63 tests
+- `npm test` — 89 tests
 - `npm run verify` — type checks, tests, builds, extension packaging and manifest validation
 - `npm run build`
 - Electron smoke test under Xvfb with both embedded views loading from a local HTTP server

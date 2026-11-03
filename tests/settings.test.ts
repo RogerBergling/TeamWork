@@ -74,6 +74,20 @@ describe('settings schema', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('requires a trusted origin before enabling system-browser SSO', () => {
+    expect(
+      safeParseSettings({ authentication: { externalBrowserSso: true } }).ok
+    ).toBe(false)
+    expect(
+      safeParseSettings({
+        authentication: {
+          externalBrowserSso: true,
+          trustedAuthOrigins: ['https://login.example.com']
+        }
+      }).ok
+    ).toBe(true)
+  })
+
   it('merges nested objects without mutating defaults', () => {
     const merged = mergeSettings(DEFAULT_SETTINGS, {
       logging: { debug: true }

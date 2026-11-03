@@ -29,6 +29,7 @@ export interface Settings {
   }
   authentication: {
     trustedAuthOrigins: string[]
+    externalBrowserSso: boolean
     allowInsecureCertificates: boolean
     clearSessionsOnExit: boolean
     notifications: boolean
@@ -80,6 +81,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   authentication: {
     trustedAuthOrigins: [],
+    externalBrowserSso: false,
     allowInsecureCertificates: false,
     clearSessionsOnExit: false,
     notifications: true
@@ -329,6 +331,14 @@ export const SETTINGS_FIELDS: SettingField[] = [
     placeholder: 'https://login.example.com\nhttps://sso.example.com',
     description:
       'One origin per line. Navigation and popups to these origins stay inside TeamWork. Leave empty to keep every http(s) redirect in-app (maximum SAML/OpenID compatibility). Add your IdP origins to send unrelated links to the system browser.'
+  },
+  {
+    path: 'authentication.externalBrowserSso',
+    section: 'authentication',
+    label: 'Use the system browser for SSO',
+    type: 'boolean',
+    description:
+      'Offloads sign-in navigations to the origins above to your default browser. Your identity provider must be configured to return to teamwork://auth. Requires at least one trusted authentication origin.'
   },
   {
     path: 'authentication.allowInsecureCertificates',

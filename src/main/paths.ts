@@ -7,6 +7,7 @@ export interface AppPaths {
   configDir: string
   configFile: string
   windowStateFile: string
+  policyFile: string
   logDir: string
   logFile: string
 }
@@ -28,6 +29,7 @@ export function resolveAppPaths(
     configDir,
     configFile: join(configDir, 'config.json'),
     windowStateFile: join(configDir, 'window-state.json'),
+    policyFile: env.TEAMWORK_POLICY_FILE?.trim() || '/etc/teamwork/policy.json',
     logDir,
     logFile: join(logDir, 'teamwork.log')
   }

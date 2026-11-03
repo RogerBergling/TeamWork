@@ -48,6 +48,7 @@ export function SettingsView({
   onNotify
 }: SettingsViewProps): React.JSX.Element {
   const { settings, meta } = snapshot
+  const lockedFields = useMemo(() => new Set(meta.lockedFields), [meta.lockedFields])
   const [draft, setDraft] = useState<Settings>(settings)
   const [errors, setErrors] = useState<SettingsFieldError[]>([])
   const [activeTab, setActiveTab] = useState<SettingsTab>('connection')
@@ -107,7 +108,13 @@ export function SettingsView({
   }
 
   const handleReset = async (): Promise<void> => {
-    if (!window.confirm('Reset every setting to its default value? This cannot be undone.')) return
+    if (
+      !window.confirm(
+        'Reset every setting to its default value? This cannot be undone. Settings managed by policy keep their policy values.'
+      )
+    ) {
+      return
+    }
     setBusy(true)
     try {
       const result = await onReset()
@@ -172,18 +179,20 @@ export function SettingsView({
 
   const renderField = (field: SettingField): React.JSX.Element => {
     const error = errors.find((entry) => entry.path === field.path)
+    const locked = lockedFields.has(field.path)
     const inputId = `setting-${field.path.replaceAll('.', '-')}`
     const errorId = `error-${field.path.replaceAll('.', '-')}`
 
     return (
       <div
         key={field.path}
-        className={`setting-row${error ? ' has-error' : ''}`}
+        className={`setting-row${error ? ' has-error' : ''}${locked ? ' is-locked' : ''}`}
         data-setting-path={field.path}
       >
         <div className="setting-copy">
           <label htmlFor={inputId}>{field.label}</label>
           {field.restart ? <span className="badge restart-badge">Restart required</span> : null}
+          {locked ? <span className="badge managed-badge">Managed by policy</span> : null}
           {field.description ? <p className="setting-description">{field.description}</p> : null}
           {error ? (
             <p className="setting-error" id={errorId}>
@@ -196,6 +205,7 @@ export function SettingsView({
             field={field}
             value={getByPath(draft, field.path)}
             fallbackLogo={fallbackLogo}
+            disabled={locked}
             onChange={(value) => updateField(field.path, value)}
             onChooseLogo={onChooseLogo}
             onLogoData={onLogoData}
@@ -367,7 +377,11 @@ export function SettingsView({
       <header className="settings-header">
         <div>
           <h1>Settings</h1>
-          <p>Everything is stored in the configuration file and applied immediately.</p>
+          <p>
+            {meta.lockedFields.length > 0
+              ? 'User-editable settings are stored in the configuration file. Fields marked as managed come from system policy.'
+              : 'Everything is stored in the configuration file and applied immediately.'}
+          </p>
         </div>
         <div className="settings-header-actions">
           {dirty ? <span className="unsaved-label">Unsaved changes</span> : null}
@@ -398,6 +412,33 @@ export function SettingsView({
             <strong>The configuration file could not be loaded.</strong>
             <p>{meta.loadError}</p>
             <p>Defaults are in use. The previous file was preserved with an .invalid suffix.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {meta.policyError ? (
+        <div className="inline-alert error" role="alert">
+          <Icon name="alert" size={18} />
+          <div>
+            <strong>The system policy could not be loaded.</strong>
+            <p>{meta.policyError}</p>
+            <p>
+              User settings are in use, and no fields are locked. Ask your administrator to correct{' '}
+              <code>{meta.policyPath}</code>.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {meta.lockedFields.length > 0 ? (
+        <div className="inline-alert info" role="status">
+          <Icon name="info" size={18} />
+          <div>
+            <strong>Managed by system policy</strong>
+            <p>
+              {meta.lockedFields.length} setting{meta.lockedFields.length === 1 ? '' : 's'} come
+              from <code>{meta.policyPath}</code> and cannot be changed in this window.
+            </p>
           </div>
         </div>
       ) : null}

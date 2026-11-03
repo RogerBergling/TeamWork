@@ -1,5 +1,6 @@
 import type {
   AppCommand,
+  ExternalAuthEvent,
   ScreenShareRequest,
   SettingsSnapshot,
   ViewStatus,
@@ -13,6 +14,7 @@ const viewStatusListeners = new Set<Listener<ViewStatus>>()
 const settingsListeners = new Set<Listener<SettingsSnapshot>>()
 const screenShareListeners = new Set<Listener<ScreenShareRequest>>()
 const screenShareCancelledListeners = new Set<Listener<number>>()
+const externalAuthListeners = new Set<Listener<ExternalAuthEvent>>()
 const commandListeners = new Set<Listener<AppCommand>>()
 const windowStateListeners = new Set<Listener<WindowState>>()
 
@@ -33,6 +35,9 @@ function init(): void {
   })
   window.teamwork.onScreenShareCancelled((id) => {
     for (const listener of screenShareCancelledListeners) listener(id)
+  })
+  window.teamwork.onExternalAuth((event) => {
+    for (const listener of externalAuthListeners) listener(event)
   })
   window.teamwork.onCommand((command) => {
     for (const listener of commandListeners) listener(command)
@@ -60,6 +65,9 @@ export const bridge = {
   },
   onScreenShareCancelled(callback: Listener<number>): Unsubscribe {
     return subscribe(screenShareCancelledListeners, callback)
+  },
+  onExternalAuth(callback: Listener<ExternalAuthEvent>): Unsubscribe {
+    return subscribe(externalAuthListeners, callback)
   },
   onCommand(callback: Listener<AppCommand>): Unsubscribe {
     return subscribe(commandListeners, callback)

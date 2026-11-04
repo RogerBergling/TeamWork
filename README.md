@@ -334,3 +334,14 @@ The TeamWork shell is licensed under the Apache License 2.0. Element, Jitsi, Ele
 Documentation: [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Enterprise policy](docs/policy.md) · [Authentication](docs/authentication.md) · [Deep links](docs/deep-links.md) · [Browser extension](docs/browser-extension.md) · [Packaging](docs/packaging.md) · [Performance](docs/performance.md) · [Enterprise readiness](docs/enterprise-readiness.md) · [Roadmap](docs/roadmap.md)
 
 Project: [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
+
+---
+
+## Development note
+
+This project was developed with AI assistance and human review. The maintainer
+defines the requirements, threat model, edge cases and acceptance criteria; AI
+helps write and refactor code; the maintainer tests, breaks and verifies it.
+The software is provided as-is, without warranty. See
+[How this was built](https://apps.bergling.net/how-this-was-built/) for the
+longer explanation.

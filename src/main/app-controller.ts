@@ -20,12 +20,25 @@ import { ViewManager } from './view-manager'
 import { PendingAuthStore } from './pending-auth'
 import { TrayController } from './tray'
 import { createShellWindow } from './shell-window'
+import { resolveShellRendererLocation, type ShellRendererLocation } from './shell-url-policy'
+import { readSmokeOptions, type SmokeOptions } from './smoke-options'
 import { startupTimer } from './startup-timing'
 import { BUILD_NUMBER, BUILD_TIMESTAMP } from './build-info'
-import { chooseLogo, readLogoDataUrl, trayIconFor, windowIconFor } from './logo'
+import {
+  chooseLogo,
+  isLogoPathAllowed,
+  readLogoDataUrl,
+  resolveLogoPath,
+  trayIconFor,
+  windowIconFor
+} from './logo'
 import { getByPath, safeParseSettings, setByPath, type Settings } from '../shared/settings'
 import { formatBuildParts } from '../shared/build-info'
-import { isAuthCallbackLink, resolveAuthCallback } from '../shared/auth-callback'
+import {
+  authCallbackState,
+  isAuthCallbackLink,
+  resolveAuthCallback
+} from '../shared/auth-callback'
 import {
   findDeepLinkInArgv,
   resolveJitsiMeetingInput,
@@ -59,6 +72,9 @@ export class AppController {
   private rendererReady = false
   private pendingDeepLink: string | null = null
   private boundsTimer: NodeJS.Timeout | null = null
+  private shellLocation: ShellRendererLocation | null = null
+  private smoke: SmokeOptions = readSmokeOptions({}, true)
+  private readonly approvedLogoPaths = new Set<string>()
 
   constructor(
     private readonly paths: AppPaths,
@@ -92,11 +108,18 @@ export class AppController {
 
     const icon = windowIconFor(this.settings)
     const state = this.windowState.load()
+    this.shellLocation = resolveShellRendererLocation({
+      baseDir: __dirname,
+      isPackaged: app.isPackaged,
+      envUrl: process.env.ELECTRON_RENDERER_URL
+    })
+    this.smoke = readSmokeOptions(process.env, app.isPackaged)
     this.window = createShellWindow({
       settings: this.settings,
       icon,
       state,
       baseDir: __dirname,
+      rendererLocation: this.shellLocation,
       onClose: (event) => this.onWindowClose(event),
       onBoundsChanged: () => this.scheduleWindowStateSave()
     })
@@ -151,8 +174,8 @@ export class AppController {
       },
       (request) => this.send('screenshare:request', request),
       (id) => this.send('screenshare:cancelled', id),
-      (event) => {
-        this.pendingAuth.record(event.view)
+      (event, pending) => {
+        this.pendingAuth.record(pending)
         this.send('auth:external', event)
       }
     )
@@ -185,7 +208,7 @@ export class AppController {
     app.on('before-quit', (event) => this.beforeQuit(event))
     app.on('activate', () => this.showWindow())
 
-    if (process.env.TEAMWORK_SMOKE_TEST === '1') {
+    if (this.smoke.enabled) {
       this.scheduleSmokeTest()
     }
   }
@@ -199,6 +222,10 @@ export class AppController {
       return null
     }
     return this.window.webContents.id
+  }
+
+  get shellRendererLocation(): ShellRendererLocation | null {
+    return this.shellLocation
   }
 
   snapshot(): SettingsSnapshot {
@@ -299,10 +326,20 @@ export class AppController {
   }
 
   async chooseLogo(): Promise<string | null> {
-    return chooseLogo(this.window)
+    const chosen = await chooseLogo(this.window)
+    if (chosen) {
+      const resolved = resolveLogoPath(chosen)
+      if (resolved) this.approvedLogoPaths.add(resolved)
+    }
+    return chosen
   }
 
-  getLogoData(path: string): string | null {
+  getLogoData(path: string): Promise<string | null> {
+    if (
+      !isLogoPathAllowed(path, this.settings.appearance.logoPath, this.approvedLogoPaths)
+    ) {
+      return Promise.resolve(null)
+    }
     return readLogoDataUrl(path)
   }
 
@@ -411,10 +448,11 @@ export class AppController {
     if (!this.views) {
       return { ok: false, error: 'The embedded view is not available.' }
     }
-    if (!this.pendingAuth.consume(result.view)) {
+    const state = authCallbackState(raw)
+    if (!this.pendingAuth.consume(result.view, state ?? undefined, result.url)) {
       const message =
-        'No system-browser sign-in is pending for this application. Start sign-in from TeamWork and try again.'
-      this.logger.warn(`Rejected unsolicited external sign-in callback for ${result.view}`)
+        'No matching system-browser sign-in is pending for this application. Start sign-in from TeamWork and try again.'
+      this.logger.warn(`Rejected unsolicited or mismatched external sign-in callback for ${result.view}`)
       return { ok: false, error: message }
     }
 
@@ -795,7 +833,7 @@ export class AppController {
         })`)) as Record<string, unknown>
 
         let saveTest: Record<string, unknown> | null = null
-        if (process.env.TEAMWORK_SMOKE_SAVE_TEST === '1') {
+        if (this.smoke.saveTest) {
           saveTest = (await window.webContents.executeJavaScript(`(async () => {
             const snapshot = await window.teamwork.getSettings()
             const next = structuredClone(snapshot.settings)
@@ -813,13 +851,13 @@ export class AppController {
           await new Promise((resolve) => setTimeout(resolve, 300))
         }
 
-        if (process.env.TEAMWORK_SMOKE_JOIN_DIALOG === '1') {
+        if (this.smoke.joinDialog) {
           this.showJoinMeetingDialog()
           await new Promise((resolve) => setTimeout(resolve, 600))
         }
 
         let uiJoinTest: Record<string, unknown> | null = null
-        if (process.env.TEAMWORK_SMOKE_UI_JOIN_URL) {
+        if (this.smoke.uiJoinUrl) {
           uiJoinTest = (await window.webContents.executeJavaScript(`(async () => {
             const input = document.querySelector('#join-meeting-url')
             if (!input) return { ok: false, error: 'Join input not found' }
@@ -827,7 +865,7 @@ export class AppController {
               window.HTMLInputElement.prototype,
               'value'
             ).set
-            setter.call(input, ${JSON.stringify(process.env.TEAMWORK_SMOKE_UI_JOIN_URL)})
+            setter.call(input, ${JSON.stringify(this.smoke.uiJoinUrl)})
             input.dispatchEvent(new Event('input', { bubbles: true }))
             await new Promise((resolve) => setTimeout(resolve, 100))
             input.closest('form').requestSubmit()
@@ -840,7 +878,7 @@ export class AppController {
           })()`)) as Record<string, unknown>
         }
 
-        const screenshotPath = process.env.TEAMWORK_SMOKE_SCREENSHOT
+        const screenshotPath = this.smoke.screenshotPath
         const image = await window.webContents.capturePage()
         const png = image.toPNG()
         if (screenshotPath) await writeFile(screenshotPath, png)
@@ -851,7 +889,7 @@ export class AppController {
           await writeFile(screenshotPath.replace(/\.png$/i, `-${activeView}.png`), viewPng)
         }
 
-        const expectedView = process.env.TEAMWORK_SMOKE_EXPECT_READY
+        const expectedView = this.smoke.expectedReadyView
         const statuses = this.views?.getStatuses() ?? []
         const expectedReady =
           !expectedView ||

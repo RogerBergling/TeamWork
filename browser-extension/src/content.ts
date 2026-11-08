@@ -1,4 +1,4 @@
-import { matchLink } from './lib/links'
+import { isUserInitiatedClick, matchLink } from './lib/links'
 import { DEFAULT_SETTINGS, loadSettings, type ExtensionSettings } from './lib/settings'
 
 const INSTALLED_KEY = '__teamworkLinkContentScriptInstalled'
@@ -25,17 +25,7 @@ function init(): void {
   document.addEventListener(
     'click',
     (event) => {
-      if (
-        !settingsReady ||
-        event.defaultPrevented ||
-        event.button !== 0 ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey ||
-        event.altKey
-      ) {
-        return
-      }
+      if (!settingsReady || !isUserInitiatedClick(event)) return
 
       const target = event.target
       if (!(target instanceof Element)) return

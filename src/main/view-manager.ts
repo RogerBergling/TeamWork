@@ -6,6 +6,7 @@ import {
   type DesktopCapturerSource,
   type WebContents
 } from 'electron'
+import { randomBytes } from 'node:crypto'
 import type {
   ExternalAuthEvent,
   ManagedView,
@@ -16,6 +17,7 @@ import type {
 } from '../shared/types'
 import type { Settings } from '../shared/settings'
 import { safeUrlForLog } from '../shared/deep-links'
+import { redactConsoleMessage } from '../shared/log-redaction'
 import {
   hostOf,
   isExternalProtocolAllowed,
@@ -24,6 +26,8 @@ import {
   shouldOpenExternally
 } from '../shared/urls'
 import type { AppLogger } from './logger'
+import type { PendingAuthRecord } from './pending-auth'
+import { isUserGestureInput, UserGestureTracker } from './user-gesture'
 import type { SessionManager } from './session-manager'
 
 interface ManagedEntry {
@@ -52,6 +56,16 @@ const VIEW_LABEL: Record<ManagedView, string> = {
   jitsi: 'Jitsi'
 }
 
+function withAuthState(target: string, state: string): string {
+  try {
+    const url = new URL(target)
+    url.searchParams.set('teamwork_state', state)
+    return url.toString()
+  } catch {
+    return target
+  }
+}
+
 function isSameDocumentUrl(current: string, target: URL): boolean {
   if (!current) return false
   try {
@@ -75,6 +89,7 @@ export class ViewManager {
   private pendingScreenShare: PendingScreenShare | null = null
   private nextScreenShareId = 1
   private readonly popups = new Set<BrowserWindow>()
+  private readonly userGestures = new UserGestureTracker()
 
   constructor(
     private readonly window: BrowserWindow,
@@ -84,7 +99,10 @@ export class ViewManager {
     private readonly onStatus: (status: ViewStatus) => void,
     private readonly onScreenShareRequest: (request: ScreenShareRequest) => void,
     private readonly onScreenShareCancelled: (id: number) => void,
-    private readonly onExternalAuth: (event: ExternalAuthEvent) => void = () => undefined
+    private readonly onExternalAuth: (
+      event: ExternalAuthEvent,
+      pending: PendingAuthRecord
+    ) => void = () => undefined
   ) {
     this.sessions.setDisplayMediaHandler((view, request, callback) => {
       void this.handleDisplayMediaRequest(view, request, callback)
@@ -314,6 +332,9 @@ export class ViewManager {
     this.entries.set(kind, entry)
 
     this.attachGuards(kind, view.webContents)
+    view.webContents.on('input-event', (_event, input) => {
+      if (isUserGestureInput(input.type)) this.userGestures.noteInput(kind)
+    })
     view.webContents.setZoomFactor(this.settings.advanced.zoomFactor)
 
     view.webContents.on('did-start-navigation', (event) => {
@@ -401,8 +422,10 @@ export class ViewManager {
 
     view.webContents.on('console-message', (event) => {
       if (!this.settings.logging.debug) return
+      const message = redactConsoleMessage(event.message)
+      const source = safeUrlForLog(event.sourceId)
       this.logger.debug(
-        `[${VIEW_LABEL[kind]} console:${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`
+        `[${VIEW_LABEL[kind]} console:${event.level}] ${message} (${source}:${event.lineNumber})`
       )
     })
   }
@@ -450,6 +473,7 @@ export class ViewManager {
         return { action: 'deny' }
       }
 
+
       this.logger.debug(`Allowing in-app popup for ${VIEW_LABEL[kind]}: ${safeUrlForLog(url)}`)
       return {
         action: 'allow',
@@ -488,9 +512,10 @@ export class ViewManager {
       }
 
       if (this.shouldOpenExternal(target, kind)) {
-        event.preventDefault()
         const externalSso = this.openExternal(kind, target, 'Opening navigation target')
-        if (externalSso && !this.isMainContents(kind, contents)) {
+        if (!externalSso) return
+        event.preventDefault()
+        if (!this.isMainContents(kind, contents)) {
           setTimeout(() => {
             if (!contents.isDestroyed()) contents.close()
           }, 0)
@@ -513,9 +538,10 @@ export class ViewManager {
       }
 
       if (this.shouldOpenExternal(target, kind)) {
-        event.preventDefault()
         const externalSso = this.openExternal(kind, target, 'Opening redirect target')
-        if (externalSso && !this.isMainContents(kind, contents)) {
+        if (!externalSso) return
+        event.preventDefault()
+        if (!this.isMainContents(kind, contents)) {
           setTimeout(() => {
             if (!contents.isDestroyed()) contents.close()
           }, 0)
@@ -539,21 +565,54 @@ export class ViewManager {
     return this.entries.get(kind)?.view.webContents === contents
   }
 
+  /**
+   * Returns true when the target was handed to the system browser. A trusted
+   * sign-in navigation that was not preceded by a real user gesture stays
+   * in-app (and gets no pending-auth marker), so page scripts cannot arm the
+   * login-CSRF callback themselves.
+   */
   private openExternal(kind: ManagedView, target: string, reason: string): boolean {
     const trustedAuthOrigins = this.settings.authentication.trustedAuthOrigins
-    const externalSso =
+    const wantsExternalSso =
       this.settings.authentication.externalBrowserSso &&
       isTrustedOrigin(target, trustedAuthOrigins)
-    if (externalSso) {
+
+    if (wantsExternalSso) {
+      if (!this.userGestures.consume(kind)) {
+        this.logger.debug(
+          `Keeping ${VIEW_LABEL[kind]} sign-in navigation in-app because no recent user gesture was observed`
+        )
+        return false
+      }
+
+      const configuredUrl =
+        kind === 'element' ? this.settings.servers.elementUrl : this.settings.servers.jitsiUrl
+      const returnUrl = parseHttpUrl(configuredUrl.trim())
+      if (!returnUrl) {
+        this.logger.warn(
+          `Cannot arm external sign-in for ${VIEW_LABEL[kind]} without a valid configured application URL`
+        )
+        return false
+      }
+
+      const state = randomBytes(32).toString('hex')
+      const pending: PendingAuthRecord = {
+        view: kind,
+        state,
+        returnUrl: returnUrl.toString()
+      }
       this.logger.info(
         `Opening external sign-in for ${VIEW_LABEL[kind]} in the system browser: ${safeUrlForLog(target)}`
       )
-      this.onExternalAuth({ view: kind, host: hostOf(target) })
-    } else {
-      this.logger.debug(`${reason} in the system browser: ${safeUrlForLog(target)}`)
+      this.onExternalAuth({ view: kind, host: hostOf(target) }, pending)
+      // Ask the IdP/returning application to echo this nonce on the callback.
+      void shell.openExternal(withAuthState(target, state))
+      return true
     }
+
+    this.logger.debug(`${reason} in the system browser: ${safeUrlForLog(target)}`)
     void shell.openExternal(target)
-    return externalSso
+    return true
   }
 
   private ensureLoaded(kind: ManagedView): void {

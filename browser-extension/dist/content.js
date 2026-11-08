@@ -131,6 +131,9 @@
     const action = kind === "jitsi" ? "join" : "matrix";
     return `teamwork://${action}?url=${encodeURIComponent(target)}`;
   }
+  function isUserInitiatedClick(event) {
+    return event.isTrusted && !event.defaultPrevented && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+  }
 
   // browser-extension/src/lib/settings.ts
   var DEFAULT_SETTINGS = {
@@ -195,9 +198,7 @@
     document.addEventListener(
       "click",
       (event) => {
-        if (!settingsReady || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
-          return;
-        }
+        if (!settingsReady || !isUserInitiatedClick(event)) return;
         const target = event.target;
         if (!(target instanceof Element)) return;
         const anchor = target.closest("a[href]");

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isAuthCallbackLink, resolveAuthCallback } from '../src/shared/auth-callback'
+import {
+  authCallbackState,
+  isAuthCallbackLink,
+  resolveAuthCallback
+} from '../src/shared/auth-callback'
 
 const element = 'https://element.example.com'
 const jitsi = 'https://meet.example.com'
@@ -12,6 +16,18 @@ describe('external-browser sign-in callback', () => {
     expect(isAuthCallbackLink('teamwork://auth/other')).toBe(false)
     expect(isAuthCallbackLink('teamwork://join?url=https%3A%2F%2Fmeet.example.com')).toBe(false)
     expect(isAuthCallbackLink('https://example.com/auth')).toBe(false)
+  })
+
+  it('extracts the anti-CSRF state from auth callbacks only', () => {
+    const state = 'a'.repeat(64)
+    expect(
+      authCallbackState(`teamwork://auth?view=element&teamwork_state=${state}`)
+    ).toBe(state)
+    expect(authCallbackState(`teamwork://auth?view=element&state=${state}`)).toBe(state)
+    expect(authCallbackState('teamwork://auth?view=element')).toBeNull()
+    expect(authCallbackState('teamwork://auth?view=element&state=short')).toBeNull()
+    expect(authCallbackState(`https://example.com/?state=${state}`)).toBeNull()
+    expect(authCallbackState(`teamwork://join?url=x&state=${state}`)).toBeNull()
   })
 
   it('returns the configured application URL when only a view is supplied', () => {

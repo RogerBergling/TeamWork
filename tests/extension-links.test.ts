@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDeepLink,
   hostMatches,
+  isTrustedContentDeepLink,
+  isUserInitiatedClick,
   matchLink,
   normalizeDomains,
   unwrapRedirectUrl
@@ -94,5 +96,38 @@ describe('browser extension link matching', () => {
     expect(buildDeepLink('matrix', 'https://matrix.to/#/!room:example.com')).toBe(
       'teamwork://matrix?url=https%3A%2F%2Fmatrix.to%2F%23%2F!room%3Aexample.com'
     )
+  })
+
+  it('trusts only content-script deep links that match the target and settings', () => {
+    const target = 'https://meet.example.com/team-standup'
+    const deepLink = buildDeepLink('jitsi', target)
+    expect(isTrustedContentDeepLink(target, deepLink, settings)).toBe(true)
+    expect(
+      isTrustedContentDeepLink(target, 'teamwork://join?url=https%3A%2F%2Fevil.example.com', settings)
+    ).toBe(false)
+    expect(isTrustedContentDeepLink(target, 'https://evil.example.com', settings)).toBe(false)
+    expect(
+      isTrustedContentDeepLink('https://other.example.com/room', deepLink, settings)
+    ).toBe(false)
+  })
+
+  it('ignores synthetic or modified click events', () => {
+    const base = {
+      isTrusted: true,
+      defaultPrevented: false,
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false
+    }
+    expect(isUserInitiatedClick(base)).toBe(true)
+    expect(isUserInitiatedClick({ ...base, isTrusted: false })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, defaultPrevented: true })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, button: 1 })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, ctrlKey: true })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, metaKey: true })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, shiftKey: true })).toBe(false)
+    expect(isUserInitiatedClick({ ...base, altKey: true })).toBe(false)
   })
 })

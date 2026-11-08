@@ -2,6 +2,7 @@ import { dialog, session, type BrowserWindow, type Session } from 'electron'
 import type { ManagedView } from '../shared/types'
 import type { Settings } from '../shared/settings'
 import { normalizeOrigin, originOf } from '../shared/urls'
+import { appPermissionAllowed, permissionCheckDecision } from './permission-policy'
 import type { AppLogger } from './logger'
 
 export type DisplayMediaCallback = (streams: Electron.Streams | null) => void
@@ -10,24 +11,6 @@ export type DisplayMediaHandler = (
   request: Electron.DisplayMediaRequestHandlerHandlerRequest,
   callback: DisplayMediaCallback
 ) => void
-
-const APP_PERMISSIONS = new Set<string>([
-  'media',
-  'display-capture',
-  'fullscreen',
-  'clipboard-read',
-  'clipboard-sanitized-write',
-  'speaker-selection',
-  'storage-access',
-  'top-level-storage-access',
-  'persistent-storage',
-  'pointerLock',
-  'screen-wake-lock',
-  'window-management',
-  'openExternal'
-])
-
-const ALWAYS_ALLOWED = new Set<string>(['storage-access', 'top-level-storage-access', 'openExternal'])
 
 export class SessionManager {
   private displayHandler: DisplayMediaHandler | null = null
@@ -138,11 +121,13 @@ export class SessionManager {
       const appOrigin = this.appOriginFor(view, settings)
       const origin = normalizeOrigin(requestingOrigin)
 
-      if (ALWAYS_ALLOWED.has(permission)) return true
-      if (origin !== null && appOrigin !== null && origin === appOrigin) {
-        if (permission === 'notifications') return settings.authentication.notifications
-        return APP_PERMISSIONS.has(permission)
-      }
+      const decision = permissionCheckDecision({
+        permission,
+        requestingOrigin: origin,
+        appOrigin,
+        notificationsEnabled: settings.authentication.notifications
+      })
+      if (decision) return true
 
       // Force a permission request (and therefore an explicit prompt) for
       // sensitive permissions coming from a different origin, such as Element
@@ -168,7 +153,9 @@ export class SessionManager {
       }
 
       if (origin === appOrigin) {
-        callback(true)
+        // Matching the app origin is not a blanket grant: only the explicit
+        // allow-list is auto-approved. Notifications were handled above.
+        callback(appPermissionAllowed(permission, settings.authentication.notifications))
         return
       }
 

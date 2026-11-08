@@ -14,7 +14,8 @@ export interface AppPaths {
 
 export function resolveAppPaths(
   env: NodeJS.ProcessEnv = process.env,
-  home: string = homedir()
+  home: string = homedir(),
+  options: { isPackaged?: boolean } = {}
 ): AppPaths {
   const configHome = env.XDG_CONFIG_HOME?.trim() || join(home, '.config')
   const stateHome = env.XDG_STATE_HOME?.trim() || join(home, '.local', 'state')
@@ -29,7 +30,10 @@ export function resolveAppPaths(
     configDir,
     configFile: join(configDir, 'config.json'),
     windowStateFile: join(configDir, 'window-state.json'),
-    policyFile: env.TEAMWORK_POLICY_FILE?.trim() || '/etc/teamwork/policy.json',
+    // A packaged application must not let an environment variable redirect the
+    // managed policy to a user-writable file.
+    policyFile:
+      (!options.isPackaged && env.TEAMWORK_POLICY_FILE?.trim()) || '/etc/teamwork/policy.json',
     logDir,
     logFile: join(logDir, 'teamwork.log')
   }

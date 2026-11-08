@@ -1,4 +1,4 @@
-import { matchLink, type LinkMatch } from './lib/links'
+import { isTrustedContentDeepLink, matchLink, type LinkMatch } from './lib/links'
 import {
   DEFAULT_SETTINGS,
   hasAllSitesPermission,
@@ -199,26 +199,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     typeof data.deepLink === 'string' &&
     typeof data.target === 'string'
   ) {
-    const match: LinkMatch = {
-      kind: data.kind === 'matrix' ? 'matrix' : 'jitsi',
-      target: data.target,
-      deepLink: data.deepLink
-    }
-    void openMatch(sender.tab?.id, match).then(
-      () => sendResponse({ ok: true }),
-      () => sendResponse({ ok: false })
-    )
+    const target = data.target
+    const deepLink = data.deepLink
+    void getSettings().then(async (settings) => {
+      if (!isTrustedContentDeepLink(target, deepLink, settings)) {
+        console.warn('Ignored an untrusted TeamWork link message from a content script')
+        sendResponse({ ok: false })
+        return
+      }
+      const match = matchLink(target, settings)
+      if (!match) {
+        sendResponse({ ok: false })
+        return
+      }
+      await openMatch(sender.tab?.id, match)
+      sendResponse({ ok: true })
+    }).catch(() => sendResponse({ ok: false }))
     return true
   }
 
   if (data.type === 'continue-browser' && typeof data.target === 'string') {
     const tabId = sender.tab?.id
+    let target: URL
+    try {
+      target = new URL(data.target)
+    } catch {
+      sendResponse({ ok: false })
+      return false
+    }
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+      sendResponse({ ok: false })
+      return false
+    }
     if (tabId === undefined) {
       sendResponse({ ok: false })
       return false
     }
-    bypass.set(tabId, { url: data.target, until: Date.now() + 15000 })
-    void chrome.tabs.update(tabId, { url: data.target }).then(
+    bypass.set(tabId, { url: target.toString(), until: Date.now() + 15000 })
+    void chrome.tabs.update(tabId, { url: target.toString() }).then(
       () => sendResponse({ ok: true }),
       () => sendResponse({ ok: false })
     )

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { lstatSync, readFileSync } from 'node:fs'
 import {
   DEFAULT_SETTINGS,
   getByPath,
@@ -33,6 +33,40 @@ export interface PolicyLoadResult {
   error?: string
 }
 
+export interface PolicyFileInfo {
+  isFile(): boolean
+  isSymbolicLink(): boolean
+  uid: number
+  mode: number
+  size: number
+}
+
+/**
+ * A managed policy is only trustworthy when it is a plain, root-owned file that
+ * unprivileged users cannot rewrite. Tests may relax the ownership rule, but
+ * production always requires root.
+ */
+export function validatePolicyFileInfo(
+  info: PolicyFileInfo,
+  options: { requireRootOwner?: boolean } = {}
+): void {
+  if (info.isSymbolicLink()) {
+    throw new Error('Policy file must not be a symbolic link')
+  }
+  if (!info.isFile()) {
+    throw new Error('Policy file must be a regular file')
+  }
+  if (options.requireRootOwner !== false && info.uid !== 0) {
+    throw new Error('Policy file must be owned by root')
+  }
+  if ((info.mode & 0o022) !== 0) {
+    throw new Error('Policy file must not be group- or world-writable')
+  }
+  if (info.size > MAX_POLICY_BYTES) {
+    throw new Error(`Policy file is larger than ${MAX_POLICY_BYTES} bytes`)
+  }
+}
+
 /**
  * Reads a read-only system policy file and applies it over user settings.
  * Policy errors are reported to the GUI and logged, but never prevent startup.
@@ -42,28 +76,32 @@ export class PolicyStore {
   private policy: Record<string, unknown> | null = null
   private lockedFields: string[] = []
   private loadError?: string
+  private failedClosed = false
 
   constructor(
     readonly filePath: string,
-    private readonly onWarning: (message: string, error?: unknown) => void = () => undefined
+    private readonly onWarning: (message: string, error?: unknown) => void = () => undefined,
+    private readonly options: { requireRootOwner?: boolean } = {}
   ) {}
 
   load(base: Settings = DEFAULT_SETTINGS): PolicyLoadResult {
     this.policy = null
     this.lockedFields = []
     this.loadError = undefined
+    this.failedClosed = false
 
-    if (!existsSync(this.filePath)) return { lockedFields: [] }
+    let info: ReturnType<typeof lstatSync>
+    try {
+      info = lstatSync(this.filePath)
+    } catch (error) {
+      // A genuinely absent file means no managed policy. Any other access
+      // failure (permissions, I/O) must not silently discard a managed policy.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { lockedFields: [] }
+      return this.failClosed(error)
+    }
 
     try {
-      const info = statSync(this.filePath)
-      if (info.size > MAX_POLICY_BYTES) {
-        throw new Error(`Policy file is larger than ${MAX_POLICY_BYTES} bytes`)
-      }
-      // A policy file that is writable by another local user is not a policy.
-      if ((info.mode & 0o022) !== 0) {
-        throw new Error('Policy file must not be group- or world-writable')
-      }
+      validatePolicyFileInfo(info, this.options)
 
       const parsed = JSON.parse(readFileSync(this.filePath, 'utf8')) as unknown
       if (!isPlainObject(parsed)) {
@@ -94,14 +132,28 @@ export class PolicyStore {
       this.lockedFields = lockedFields
       return { lockedFields }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      this.loadError = message
-      this.onWarning('Could not load the system policy; user settings are in use', error)
-      return { lockedFields: [], error: message }
+      return this.failClosed(error)
     }
   }
 
+  private failClosed(error: unknown): PolicyLoadResult {
+    const message = error instanceof Error ? error.message : String(error)
+    this.policy = null
+    this.lockedFields = []
+    this.loadError = message
+    this.failedClosed = true
+    this.onWarning(
+      'Could not load the system policy; safe defaults are in use until it is fixed',
+      error
+    )
+    return { lockedFields: [], error: message }
+  }
+
   apply(base: Settings): Settings {
+    // A managed policy exists but could not be read or validated. Do not fall
+    // back to user settings: that would silently discard administrator locks.
+    if (this.failedClosed) return structuredClone(DEFAULT_SETTINGS)
+
     let effective = structuredClone(base)
     if (!this.policy) return effective
 

@@ -1,4 +1,14 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { dirname } from 'node:path'
 import {
   DEFAULT_SETTINGS,
@@ -117,11 +127,24 @@ export class ConfigStore {
   }
 
   exportTo(target: string): SaveConfigResult {
+    const temporary = `${target}.tmp-${process.pid}`
     try {
       mkdirSync(dirname(target), { recursive: true })
-      copyFileSync(this.configFile, target)
+      const raw = readFileSync(this.configFile)
+      // Exports contain the same potentially sensitive settings as the user
+      // configuration, so create the replacement privately and swap it in
+      // atomically. rename(2) also replaces an existing target without a
+      // window where its permissions are inherited from the old file.
+      writeFileSync(temporary, raw, { mode: 0o600 })
+      chmodSync(temporary, 0o600)
+      renameSync(temporary, target)
       return { ok: true, message: `Configuration exported to ${target}` }
     } catch (error) {
+      try {
+        rmSync(temporary, { force: true })
+      } catch {
+        // Best effort cleanup.
+      }
       const message = error instanceof Error ? error.message : String(error)
       return { ok: false, message: `Could not export the configuration: ${message}` }
     }

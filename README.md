@@ -276,11 +276,11 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 - Shell renderer: `contextIsolation: true`, app-wide Chromium sandbox, no Node integration, strict preload bridge.
 - Element and Jitsi: separate persistent partitions, no preload, no Node integration, sandboxed.
 - Packaged Electron runtime disables `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`, and inspector flags, loads only from the ASAR, and enables cookie encryption.
-- Permission requests (camera, microphone, screen capture, notifications) are granted automatically only for the configured application origin; other origins require an explicit dialog.
+- Permission requests are auto-granted only for an explicit allow-list (media, display capture, fullscreen, clipboard and similar) at the configured application origin; notifications follow the setting and other origins require an explicit dialog.
 - External links open in the system browser when trusted authentication origins are configured.
 - Non-HTTP(S) navigation and redirect targets are blocked. `mailto:` and `tel:` links are handed to the system handler.
 - Packaged builds refuse remote-debugging and Node-inspector switches.
-- A read-only system policy can lock managed settings; the main process enforces it even if the user edits the JSON file.
+- A read-only, root-owned system policy can lock managed settings; the main process enforces it even if the user edits the JSON file, and fails closed to defaults if a managed policy is invalid.
 - The log file is created with mode `0600` inside a `0700` state directory.
 - Custom CSS is user-controlled local configuration, not remote input.
 - Sessions can be cleared per application or automatically on exit.

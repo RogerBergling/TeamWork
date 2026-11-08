@@ -1,6 +1,12 @@
-import { BrowserWindow, screen, type NativeImage } from 'electron'
-import { existsSync } from 'node:fs'
+import { app, BrowserWindow, screen, type NativeImage } from 'electron'
 import { join } from 'node:path'
+import { safeUrlForLog } from '../shared/deep-links'
+import {
+  isAllowedShellNavigation,
+  resolveShellRendererLocation,
+  shellWindowOpenDecision,
+  type ShellRendererLocation
+} from './shell-url-policy'
 import type { PersistedWindowState } from './window-state'
 
 export interface ShellWindowOptions {
@@ -8,6 +14,7 @@ export interface ShellWindowOptions {
   icon: NativeImage
   state: PersistedWindowState
   baseDir: string
+  rendererLocation?: ShellRendererLocation
   onClose: (event: Electron.Event) => void
   onBoundsChanged: () => void
 }
@@ -31,7 +38,13 @@ export function createShellWindow(options: ShellWindowOptions): BrowserWindow {
     : { width: 1280, height: 820 }
 
   const preloadPath = join(options.baseDir, '../preload/index.js')
-  const rendererFile = join(options.baseDir, '../renderer/index.html')
+  const rendererLocation: ShellRendererLocation =
+    options.rendererLocation ??
+    resolveShellRendererLocation({
+      baseDir: options.baseDir,
+      isPackaged: app.isPackaged,
+      envUrl: process.env.ELECTRON_RENDERER_URL
+    })
 
   const window = new BrowserWindow({
     ...bounds,
@@ -60,16 +73,28 @@ export function createShellWindow(options: ShellWindowOptions): BrowserWindow {
 
   window.setMenuBarVisibility(false)
 
-  const developmentUrl = process.env.ELECTRON_RENDERER_URL
-  if (developmentUrl) {
-    void window.loadURL(developmentUrl)
-  } else if (existsSync(rendererFile)) {
-    void window.loadFile(rendererFile)
+  if (rendererLocation.load.kind === 'dev-url') {
+    void window.loadURL(rendererLocation.load.url)
+  } else if (rendererLocation.load.kind === 'file') {
+    void window.loadFile(rendererLocation.load.file)
   } else {
     void window.loadURL(
       `data:text/html,${encodeURIComponent('<h1>Renderer build not found</h1>')}`
     )
   }
+
+  // The shell document contains the privileged preload bridge. Never let it
+  // navigate away from the packaged renderer or the validated dev server.
+  const guardNavigation = (event: Electron.Event, url: string): void => {
+    if (isAllowedShellNavigation(url, rendererLocation)) return
+    event.preventDefault()
+    console.warn(
+      `TeamWork blocked an unexpected shell navigation to ${safeUrlForLog(url)}`
+    )
+  }
+  window.webContents.on('will-navigate', (event, url) => guardNavigation(event, url))
+  window.webContents.on('will-redirect', (event, url) => guardNavigation(event, url))
+  window.webContents.setWindowOpenHandler((details) => shellWindowOpenDecision(details.url))
 
   window.once('ready-to-show', () => {
     if (settings.window.startMinimized && settings.appearance.showTrayIcon) return

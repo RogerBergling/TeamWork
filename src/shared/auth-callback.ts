@@ -12,6 +12,29 @@ const MAX_TARGET_LENGTH = 8_192
  * callback. Accepts teamwork://auth, teamwork://auth/callback and
  * teamwork:auth for compatibility with different URI normalisers.
  */
+const AUTH_STATE_PARAMS = ['teamwork_state', 'state']
+const AUTH_STATE_PATTERN = /^[A-Za-z0-9._~-]{16,256}$/
+
+/**
+ * Returns the anti-CSRF state echoed by the system browser. TeamWork includes
+ * teamwork_state in the URL handed to the browser; identity providers or the
+ * returning application must preserve it. A callback without a valid state can
+ * never consume a pending marker.
+ */
+export function authCallbackState(raw: string): string | null {
+  if (!isAuthCallbackLink(raw)) return null
+  try {
+    const link = new URL(raw.trim())
+    for (const parameter of AUTH_STATE_PARAMS) {
+      const value = link.searchParams.get(parameter)
+      if (value && AUTH_STATE_PATTERN.test(value)) return value
+    }
+  } catch {
+    // Fall through to null.
+  }
+  return null
+}
+
 export function isAuthCallbackLink(raw: string): boolean {
   try {
     const link = new URL(raw.trim())

@@ -14,11 +14,13 @@ The default policy path is:
 /etc/teamwork/policy.json
 ```
 
-Override it for testing or a non-standard layout:
+Development builds can override it for testing or a non-standard layout:
 
 ```bash
 TEAMWORK_POLICY_FILE=/path/to/policy.json teamwork
 ```
+
+Packaged builds ignore `TEAMWORK_POLICY_FILE` and always read `/etc/teamwork/policy.json`, so a user cannot redirect the managed policy to a file they control.
 
 The policy file is read once at startup. Restart TeamWork after changing it.
 
@@ -60,12 +62,16 @@ Only fields present in the policy are locked. In the example above, the user can
 
 ## Validation and diagnostics
 
-The policy is validated with the same schema as the user configuration. It must be a JSON object. Unknown fields are rejected so a typo cannot silently leave a control unlocked. The file must not be group- or world-writable.
+The policy is validated with the same schema as the user configuration. It must be a JSON object. Unknown fields are rejected so a typo cannot silently leave a control unlocked. The file must:
 
-If the policy cannot be read or validated:
+- be a regular file (not a symlink or directory);
+- be owned by `root`;
+- not be group- or world-writable.
+
+If a managed policy exists but cannot be read or validated:
 
 - TeamWork logs a warning and shows the error in **Settings**.
-- No fields are locked and user settings are used.
+- The application fails closed: built-in defaults are used and user settings are ignored until the policy is repaired.
 - The application still starts so an administrator can repair the file.
 
 For a managed fleet, treat a policy error as a deployment failure and monitor the application log.

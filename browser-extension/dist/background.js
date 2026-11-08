@@ -131,6 +131,11 @@
     const action = kind === "jitsi" ? "join" : "matrix";
     return `teamwork://${action}?url=${encodeURIComponent(target)}`;
   }
+  function isTrustedContentDeepLink(target, deepLink, settings) {
+    if (!/^teamwork:\/\//i.test(deepLink)) return false;
+    const match = matchLink(target, settings);
+    return match !== null && match.deepLink === deepLink;
+  }
 
   // browser-extension/src/lib/settings.ts
   var DEFAULT_SETTINGS = {
@@ -343,25 +348,43 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const data = message ?? {};
     if (data.type === "open-link" && typeof data.deepLink === "string" && typeof data.target === "string") {
-      const match = {
-        kind: data.kind === "matrix" ? "matrix" : "jitsi",
-        target: data.target,
-        deepLink: data.deepLink
-      };
-      void openMatch(sender.tab?.id, match).then(
-        () => sendResponse({ ok: true }),
-        () => sendResponse({ ok: false })
-      );
+      const target = data.target;
+      const deepLink = data.deepLink;
+      void getSettings().then(async (settings) => {
+        if (!isTrustedContentDeepLink(target, deepLink, settings)) {
+          console.warn("Ignored an untrusted TeamWork link message from a content script");
+          sendResponse({ ok: false });
+          return;
+        }
+        const match = matchLink(target, settings);
+        if (!match) {
+          sendResponse({ ok: false });
+          return;
+        }
+        await openMatch(sender.tab?.id, match);
+        sendResponse({ ok: true });
+      }).catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (data.type === "continue-browser" && typeof data.target === "string") {
       const tabId = sender.tab?.id;
+      let target;
+      try {
+        target = new URL(data.target);
+      } catch {
+        sendResponse({ ok: false });
+        return false;
+      }
+      if (target.protocol !== "http:" && target.protocol !== "https:") {
+        sendResponse({ ok: false });
+        return false;
+      }
       if (tabId === void 0) {
         sendResponse({ ok: false });
         return false;
       }
-      bypass.set(tabId, { url: data.target, until: Date.now() + 15e3 });
-      void chrome.tabs.update(tabId, { url: data.target }).then(
+      bypass.set(tabId, { url: target.toString(), until: Date.now() + 15e3 });
+      void chrome.tabs.update(tabId, { url: target.toString() }).then(
         () => sendResponse({ ok: true }),
         () => sendResponse({ ok: false })
       );

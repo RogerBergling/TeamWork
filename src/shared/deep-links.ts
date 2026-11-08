@@ -1,3 +1,5 @@
+import { redactTokenLike } from './log-redaction'
+
 export type UrlResult =
   | { ok: true; url: string }
   | { ok: false; error: string }
@@ -213,8 +215,8 @@ export function validateJitsiMeetingUrl(target: string, configuredJitsiUrl: stri
 export function safeUrlForLog(value: string): string {
   try {
     const url = new URL(value)
-    return `${url.origin}${url.pathname}`
+    return redactTokenLike(`${url.origin}${url.pathname}`)
   } catch {
-    return value.split('?')[0]?.split('#')[0] ?? value
+    return redactTokenLike(value.split('?')[0]?.split('#')[0] ?? value)
   }
 }

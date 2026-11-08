@@ -423,8 +423,8 @@ export function SettingsView({
             <strong>The system policy could not be loaded.</strong>
             <p>{meta.policyError}</p>
             <p>
-              User settings are in use, and no fields are locked. Ask your administrator to correct{' '}
-              <code>{meta.policyPath}</code>.
+              Default settings are in use and user settings are ignored until the policy is fixed.
+              Ask your administrator to correct <code>{meta.policyPath}</code>.
             </p>
           </div>
         </div>

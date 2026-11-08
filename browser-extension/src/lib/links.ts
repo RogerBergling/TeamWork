@@ -172,3 +172,41 @@ export function buildDeepLink(kind: LinkKind, target: string): string {
   const action = kind === 'jitsi' ? 'join' : 'matrix'
   return `teamwork://${action}?url=${encodeURIComponent(target)}`
 }
+
+/**
+ * Background pages receive deep links from content scripts. Never trust a
+ * content-script-supplied link: it must use the TeamWork protocol and be the
+ * exact link produced by matching the supplied target against current settings.
+ */
+export function isTrustedContentDeepLink(
+  target: string,
+  deepLink: string,
+  settings: MatchSettings
+): boolean {
+  if (!/^teamwork:\/\//i.test(deepLink)) return false
+  const match = matchLink(target, settings)
+  return match !== null && match.deepLink === deepLink
+}
+
+export interface ClickLikeEvent {
+  isTrusted: boolean
+  defaultPrevented: boolean
+  button: number
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+  altKey: boolean
+}
+
+/** Synthetic (untrusted) events must never trigger protocol launches. */
+export function isUserInitiatedClick(event: ClickLikeEvent): boolean {
+  return (
+    event.isTrusted &&
+    !event.defaultPrevented &&
+    event.button === 0 &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    !event.altKey
+  )
+}

@@ -69,7 +69,7 @@ teamwork://auth?view=element&url=https%3A%2F%2Felement.example.com%2F...
 
 TeamWork validates the return URL against the configured Element/Jitsi origin before loading it. A callback for another origin is rejected. Tokens and query parameters are not written to the main log.
 
-A callback is accepted only while a system-browser sign-in started by TeamWork is pending (30-minute window, persisted across a restart). This prevents an arbitrary website from invoking `teamwork://auth` and forcing a login URL into an embedded session. Trigger the sign-in from the Element or Jitsi view; a callback from a manually started browser session is rejected.
+A callback is accepted only while a system-browser sign-in explicitly started by a user gesture in TeamWork is pending (30-minute window, persisted across a restart). The pending marker is bound to a random state; TeamWork adds it to the browser URL as `teamwork_state`, and the returning application/IdP must preserve it on the `teamwork://auth` callback (either `teamwork_state` or `state` is accepted). A callback without the matching state and return origin is rejected, and a forged callback cannot cancel the legitimate pending sign-in. Trigger the sign-in from the Element or Jitsi view; a callback from a manually started browser session is rejected.
 
 If `view` is omitted, TeamWork infers the application from the return URL. If both Element and Jitsi are configured and there is no return URL, the callback must specify `view=element` or `view=jitsi`.
 

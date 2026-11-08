@@ -1,5 +1,6 @@
 import { ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import type { AppController } from './app-controller'
+import { isTrustedShellSenderUrl } from './shell-url-policy'
 import type { ManagedView, ShellView } from '../shared/types'
 
 function isManagedView(value: unknown): value is ManagedView {
@@ -12,7 +13,15 @@ function isShellView(value: unknown): value is ShellView {
 
 export function registerIpc(controller: AppController): void {
   const trusted = (event: IpcMainEvent | IpcMainInvokeEvent): boolean => {
-    return controller.shellWebContentsId === event.sender.id
+    if (controller.shellWebContentsId !== event.sender.id) return false
+
+    // A matching webContents id is not sufficient: the document must still be
+    // the packaged shell or the validated loopback development server.
+    const location = controller.shellRendererLocation
+    if (!location) return false
+
+    const senderUrl = event.senderFrame?.url || event.sender.getURL()
+    return isTrustedShellSenderUrl(senderUrl, location)
   }
 
   const handle = <T>(channel: string, handler: (...args: unknown[]) => T): void => {

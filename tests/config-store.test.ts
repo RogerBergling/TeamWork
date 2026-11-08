@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -91,6 +99,20 @@ describe('ConfigStore', () => {
 
     expect(result.ok).toBe(true)
     expect(destination.value.appearance.appName).toBe('Exported')
+  })
+
+  it('exports with mode 0600 and atomically replaces an existing file', () => {
+    const { directory, store } = temporaryConfig()
+    store.load()
+
+    const exportPath = join(directory, 'export.json')
+    writeFileSync(exportPath, 'old contents', { mode: 0o644 })
+    chmodSync(exportPath, 0o644)
+
+    expect(store.exportTo(exportPath).ok).toBe(true)
+    expect(statSync(exportPath).mode & 0o777).toBe(0o600)
+    expect(JSON.parse(readFileSync(exportPath, 'utf8'))).toEqual(DEFAULT_SETTINGS)
+    expect(readdirSync(directory).some((name) => name.includes('.tmp-'))).toBe(false)
   })
 
   it('survives an import of invalid JSON', () => {

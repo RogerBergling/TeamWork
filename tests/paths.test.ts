@@ -21,6 +21,15 @@ describe('application paths', () => {
     expect(paths.logDir).toBe('/tmp/state/teamwork/logs')
   })
 
+  it('ignores TEAMWORK_POLICY_FILE in packaged builds', () => {
+    const paths = resolveAppPaths(
+      { TEAMWORK_POLICY_FILE: '/home/alice/.config/teamwork/policy.json' },
+      '/home/alice',
+      { isPackaged: true }
+    )
+    expect(paths.policyFile).toBe('/etc/teamwork/policy.json')
+  })
+
   it('allows complete profile overrides for testing and portable use', () => {
     const paths = resolveAppPaths(
       {

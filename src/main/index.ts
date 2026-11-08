@@ -10,10 +10,10 @@ import { findDebuggingSwitch } from './startup-guards'
 import { registerIpc } from './ipc'
 import { registerTeamWorkProtocol } from './protocol-registration'
 import { startupTimer } from './startup-timing'
-import { findDeepLinkInArgv } from '../shared/deep-links'
+import { findDeepLinkInArgv, safeUrlForLog } from '../shared/deep-links'
 
 startupTimer.mark('main-module-loaded')
-const paths = resolveAppPaths()
+const paths = resolveAppPaths(process.env, undefined, { isPackaged: app.isPackaged })
 app.setName('TeamWork')
 app.setDesktopName('teamwork.desktop')
 
@@ -84,13 +84,14 @@ let initialDeepLink = findDeepLinkInArgv(process.argv)
 const settingsProvider = () => controller?.snapshot().settings ?? initialSettings
 
 app.on('certificate-error', (event, _webContents, url, error, _certificate, callback) => {
+  const logUrl = safeUrlForLog(url)
   if (settingsProvider().authentication.allowInsecureCertificates) {
-    logger.warn(`Allowing invalid TLS certificate for ${url}: ${error}`)
+    logger.warn(`Allowing invalid TLS certificate for ${logUrl}: ${error}`)
     event.preventDefault()
     callback(true)
     return
   }
-  logger.warn(`Rejected invalid TLS certificate for ${url}: ${error}`)
+  logger.warn(`Rejected invalid TLS certificate for ${logUrl}: ${error}`)
   callback(false)
 })
 

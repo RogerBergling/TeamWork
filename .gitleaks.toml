@@ -1,0 +1,8 @@
+title = "TeamWork Gitleaks configuration"
+
+[allowlist]
+description = "Synthetic JWT used to test log redaction, plus compiled release artifacts"
+paths = [
+  '''tests/log-redaction\.test\.ts$''',
+  '''release/''',
+]

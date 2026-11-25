@@ -50,9 +50,14 @@ describe('permission policy', () => {
     expect(decision('display-capture', 'https://other.example.com')).toBe(false)
   })
 
-  it('keeps the existing always-allowed storage and openExternal behaviour', () => {
+  it('keeps storage access for embedded-app compatibility', () => {
     expect(decision('storage-access', 'https://other.example.com')).toBe(true)
     expect(decision('top-level-storage-access', 'https://other.example.com')).toBe(true)
-    expect(decision('openExternal', 'https://other.example.com')).toBe(true)
+  })
+
+  it('never auto-grants openExternal, including from the app origin', () => {
+    expect(decision('openExternal', 'https://evil.example.com')).toBe(false)
+    expect(decision('openExternal', appOrigin)).toBe(false)
+    expect(appPermissionAllowed('openExternal', true)).toBe(false)
   })
 })

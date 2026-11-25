@@ -1,8 +1,10 @@
 # TeamWork
 
+**Project facts (2026-11-25):** version **0.1.0** · Electron 45 + TypeScript + electron-vite · 136 unit tests, typecheck and extension validation · Apache-2.0.
+
 TeamWork is a Linux desktop client that puts **Element (Matrix)** chat and **Jitsi Meet** calling into one Teams-like window.
 
-**Latest build:** `0.1.0` · build `202611011022` · `2026-11-01 10:22 UTC`
+**Latest build:** `0.1.0` · build `202611082202` · `2026-11-08 22:02 UTC`
 
 **Users:** [Get started](#the-easy-way-to-get-running)<br />
 **Administrators:** [Enterprise readiness](docs/enterprise-readiness.md) · [Enterprise policy](docs/policy.md) · [Packaging](docs/packaging.md)<br />
@@ -13,7 +15,7 @@ TeamWork is a Linux desktop client that puts **Element (Matrix)** chat and **Jit
   <img src="docs/assets/teamwork-join-meeting.png" width="49%" alt="Join a Jitsi meeting in TeamWork" />
 </p>
 
-*Left: settings, configuration and build metadata. Right: joining a Jitsi meeting from an Outlook/email URL.*
+*Left: settings, configuration and build metadata. Right: joining a Jitsi meeting from an Outlook/email URL. The settings capture shows an earlier build badge; build metadata is generated at build time.*
 
 ---
 
@@ -127,9 +129,13 @@ You can skip the extension. Copying a Jitsi link into **Join meeting** works wit
 
 | Version | Build number | Build date | Build time | Hour |
 |---|---|---|---|---|
-| `0.1.0` | `202611011022` | `2026-11-01` | `10:22 UTC` | `10` |
+| `0.1.0` | `202611082202` | `2026-11-08` | `22:02 UTC` | `22` |
 
 Build metadata is generated at build time and shown in the application status bar, **Settings → Application**, and the **About** dialog. CI uses the workflow run number as the build number; local builds derive it from the UTC timestamp.
+
+The binaries in `release/` were built before the 2026-11-25 `openExternal`
+permission hardening. Rebuild (`npm run dist`) and re-sign them before
+distributing a new release.
 
 Override build metadata when needed:
 
@@ -277,6 +283,7 @@ Screen sharing uses `xdg-desktop-portal` and PipeWire. Make sure the portal and 
 - Element and Jitsi: separate persistent partitions, no preload, no Node integration, sandboxed.
 - Packaged Electron runtime disables `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`, and inspector flags, loads only from the ASAR, and enables cookie encryption.
 - Permission requests are auto-granted only for an explicit allow-list (media, display capture, fullscreen, clipboard and similar) at the configured application origin; notifications follow the setting and other origins require an explicit dialog.
+- `openExternal` is never auto-granted, including from the application origin. A remote page cannot ask the host to launch an arbitrary protocol handler.
 - External links open in the system browser when trusted authentication origins are configured.
 - Non-HTTP(S) navigation and redirect targets are blocked. `mailto:` and `tel:` links are handed to the system handler.
 - Packaged builds refuse remote-debugging and Node-inspector switches.
@@ -305,8 +312,8 @@ scripts/           Icon and extension packaging scripts
 
 The repository is validated with:
 
-- `npm run verify` — type checks, 89 unit tests, production builds, extension packaging, and manifest validation
-- `npm test` — 89 tests across settings, URL policy, deep links, auth callbacks, policy enforcement, pending-auth markers, extension matching, config store, window state, paths, startup timing, and build metadata
+- `npm run verify` — type checks, 136 unit tests, production builds, extension packaging, and manifest validation
+- `npm test` — 136 tests across settings, URL policy, deep links, auth callbacks, policy enforcement, pending-auth markers, extension matching, config store, window state, paths, startup timing, and build metadata
 - A real Electron smoke test under Xvfb, including loading both embedded views from a local server
 - Deep-link launch and Join-dialog submission, including preservation of the full Jitsi URL
 - Launching the built **AppImage**, extracted **.deb**, and extracted **.rpm** with the smoke test

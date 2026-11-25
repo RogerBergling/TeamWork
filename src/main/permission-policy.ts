@@ -15,14 +15,12 @@ export const APP_PERMISSIONS: ReadonlySet<string> = new Set([
   'persistent-storage',
   'pointerLock',
   'screen-wake-lock',
-  'window-management',
-  'openExternal'
+  'window-management'
 ])
 
 export const ALWAYS_ALLOWED: ReadonlySet<string> = new Set([
   'storage-access',
-  'top-level-storage-access',
-  'openExternal'
+  'top-level-storage-access'
 ])
 
 export function appPermissionAllowed(
